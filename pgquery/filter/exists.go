@@ -5,6 +5,8 @@
 package filter
 
 import (
+	"encoding/json"
+
 	"github.com/go-pg/pg/v10/orm"
 	"github.com/go-pg/pg/v10/types"
 )
@@ -12,7 +14,32 @@ import (
 // Exists exists common filter.
 type Exists struct {
 	column string
-	Value  bool `json:"value,omitempty"`
+	Value  bool `json:"value,omitempty"` // TODO: use pointer
+}
+
+// UnmarshalJSON custom JSON unmarshaler.
+func (f *Exists) UnmarshalJSON(b []byte) error {
+	type alias Exists
+
+	m1 := alias{}
+	var m2 bool
+
+	if err := json.Unmarshal(b, &m1); err == nil {
+		f.Value = m1.Value
+		return nil
+	}
+
+	if err := json.Unmarshal(b, &m2); err == nil {
+		f.Value = m2
+		return nil
+	}
+
+	return nil // TODO: return unsupported format error
+}
+
+// MarshalJSON custom JSON marshaler.
+func (f *Exists) MarshalJSON() ([]byte, error) {
+	return json.Marshal(f.Value)
 }
 
 // NewExists initializes a new exists filter.

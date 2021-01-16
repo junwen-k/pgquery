@@ -5,6 +5,7 @@
 package filter
 
 import (
+	"encoding/json"
 	"strings"
 
 	"github.com/go-pg/pg/v10/orm"
@@ -19,6 +20,31 @@ type KeywordSearch struct {
 	matchStart      bool
 	matchEnd        bool
 	Value           string `json:"value,omitempty"`
+}
+
+// UnmarshalJSON custom JSON unmarshaler.
+func (f *KeywordSearch) UnmarshalJSON(b []byte) error {
+	type alias KeywordSearch
+
+	m1 := alias{}
+	var m2 string
+
+	if err := json.Unmarshal(b, &m1); err == nil {
+		f.Value = m1.Value
+		return nil
+	}
+
+	if err := json.Unmarshal(b, &m2); err == nil {
+		f.Value = m2
+		return nil
+	}
+
+	return nil // TODO: return unsupported format error
+}
+
+// MarshalJSON custom JSON marshaler.
+func (f *KeywordSearch) MarshalJSON() ([]byte, error) {
+	return json.Marshal(f.Value)
 }
 
 // NewKeywordSearch initializes a new keyword search filter.

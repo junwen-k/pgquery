@@ -5,6 +5,7 @@
 package filter
 
 import (
+	"encoding/json"
 	"fmt"
 	"strings"
 	"time"
@@ -108,10 +109,57 @@ func (o *RelativeDateTimeRangeUnitOption) build() string {
 // RelativeDateTimeRange relative datetime range common filter.
 type RelativeDateTimeRange struct {
 	column   string
-	layout   string
+	layout   string                           // TODO: multiple layout format support
 	Ago      *RelativeDateTimeRangeUnitOption `json:"ago,omitempty"`
 	Upcoming *RelativeDateTimeRangeUnitOption `json:"upcoming,omitempty"`
 	At       *time.Time                       `json:"at,omitempty"`
+}
+
+// MarshalJSON custom JSON marshaler.
+func (f *RelativeDateTimeRange) MarshalJSON() ([]byte, error) {
+	type alias RelativeDateTimeRange
+
+	m1 := struct {
+		At string `json:"at,omitempty"`
+		*alias
+	}{alias: (*alias)(f)}
+
+	if f.layout == "" {
+		f.layout = time.RFC3339
+	}
+
+	if f.At != nil {
+		m1.At = f.At.Format(f.layout)
+	}
+
+	return json.Marshal(m1)
+}
+
+// UnmarshalJSON custom JSON unmarshaler.
+func (f *RelativeDateTimeRange) UnmarshalJSON(b []byte) error {
+	type alias RelativeDateTimeRange
+
+	m1 := struct {
+		At string `json:"at,omitempty"`
+		*alias
+	}{alias: (*alias)(f)}
+
+	if f.layout == "" {
+		f.layout = time.RFC3339
+	}
+
+	if err := json.Unmarshal(b, &m1); err == nil {
+		if m1.At != "" {
+			at, err := time.Parse(f.layout, m1.At)
+			if err != nil {
+				return err
+			}
+			f.At = &at
+		}
+		return nil
+	}
+
+	return nil // TODO: return unsupported format error
 }
 
 // NewRelativeDateTimeRange initializes a new relative datetime filter.

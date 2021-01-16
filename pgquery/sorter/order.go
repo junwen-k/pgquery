@@ -9,7 +9,7 @@ import (
 	"strings"
 
 	"github.com/go-pg/pg/v10/orm"
-	"github.com/go-pg/pg/v9/types"
+	"github.com/go-pg/pg/v10/types"
 )
 
 // OrderDirection order direction enum type.
@@ -36,28 +36,42 @@ type Order struct {
 
 // MarshalJSON custom JSON marshaler.
 func (s *Order) MarshalJSON() ([]byte, error) {
-	var t *struct {
-		Direction string `json:"direction,omitempty"`
-	}
-	t.Direction = s.Direction.String()
-	return json.Marshal(t)
+	return json.Marshal(s.Direction.String())
 }
 
 // UnmarshalJSON custom JSON unmarshaler.
 func (s *Order) UnmarshalJSON(b []byte) error {
-	var t *struct {
+	type alias Order
+
+	m1 := struct {
 		Direction string `json:"direction,omitempty"`
-	}
-	if err := json.Unmarshal(b, &t); err == nil {
-		d := strings.ToLower(t.Direction)
+		*alias
+	}{alias: (*alias)(s)}
+	var m2 string
+
+	if err := json.Unmarshal(b, &m1); err == nil {
+		d := strings.ToLower(m1.Direction)
 		if d == strings.ToLower(OrderDirectionAsc.String()) {
 			s.Direction = OrderDirectionAsc
 		}
 		if d == strings.ToLower(OrderDirectionDesc.String()) {
 			s.Direction = OrderDirectionDesc
 		}
+		return nil
 	}
-	return nil
+
+	if err := json.Unmarshal(b, &m2); err == nil {
+		d := strings.ToLower(m2)
+		if d == strings.ToLower(OrderDirectionAsc.String()) {
+			s.Direction = OrderDirectionAsc
+		}
+		if d == strings.ToLower(OrderDirectionDesc.String()) {
+			s.Direction = OrderDirectionDesc
+		}
+		return nil
+	}
+
+	return nil // TODO: return unsupported format error
 }
 
 // NewOrder initializes a new order sorter.

@@ -19,19 +19,49 @@ type Match struct {
 
 // UnmarshalJSON custom JSON unmarshaler.
 func (f *Match) UnmarshalJSON(b []byte) error {
-	var t *struct {
-		Values string `json:"values,omitempty"`
+	type Alias Match
+
+	m1 := Alias{}
+	m2 := struct {
+		*Alias
+		Values interface{} `json:"values,omitempty"`
+	}{Alias: (*Alias)(f)}
+	m3 := make([]interface{}, 0)
+	var m4 interface{}
+
+	if err := json.Unmarshal(b, &m1); err == nil {
+		f.Values = m1.Values
+		return nil
 	}
-	if err := json.Unmarshal(b, &t); err == nil {
-		f.Values = []interface{}{t.Values}
+
+	if err := json.Unmarshal(b, &m2); err == nil {
+		f.Values = []interface{}{m2.Values}
+		return nil
 	}
-	var tt *struct {
-		Values []interface{} `json:"values,omitempty"`
+
+	if err := json.Unmarshal(b, &m3); err == nil {
+		f.Values = m3
+		return nil
 	}
-	if err := json.Unmarshal(b, &tt); err == nil {
-		f.Values = tt.Values
+
+	if err := json.Unmarshal(b, &m4); err == nil {
+		f.Values = []interface{}{m4}
+		return nil
 	}
-	return nil
+
+	return nil // TODO: return unsupported format error
+}
+
+// MarshalJSON custom JSON marshaler.
+func (f *Match) MarshalJSON() ([]byte, error) {
+	switch {
+	case len(f.Values) == 1:
+		return json.Marshal(f.Values[0])
+	case len(f.Values) > 1:
+		return json.Marshal(f.Values)
+	default:
+		return json.Marshal(f.Values)
+	}
 }
 
 // NewMatch initializes a new match filter.

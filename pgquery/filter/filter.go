@@ -8,7 +8,6 @@ import "github.com/go-pg/pg/v10/orm"
 
 // TODO: add typed misconfigured query error
 // TODO: add tests for JSON marshal / unmarshal
-// TODO: verify if date JSON parse with custom layout works
 
 // Filter common filter interface.
 type Filter interface {
