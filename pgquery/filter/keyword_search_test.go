@@ -5,183 +5,216 @@
 package filter_test
 
 import (
+	"encoding/json"
 	"fmt"
-	"testing"
 
 	"github.com/go-pg/pg/v10/orm"
 	"github.com/junwen-k/go-pgquery/pgquery/filter"
-	"github.com/stretchr/testify/assert"
+	. "github.com/onsi/ginkgo"
+	. "github.com/onsi/gomega"
 )
 
-type KeywordSearchTestItem struct {
-	Id     int64
-	Name   string
-	Emails []string `pg:",array"`
-}
+var _ = Describe("KeywordSearch", func() {
 
-func setupKeywordSearchTestItemTable(t *testing.T) {
-	err := db.Model((*KeywordSearchTestItem)(nil)).CreateTable(&orm.CreateTableOptions{
-		Temp: true,
+	type KeywordSearchTestItem struct {
+		Id     int64
+		Name   string
+		Emails []string `pg:",array"`
+	}
+
+	Context("marshalling json", func() {
+		It("should marshal json successfully", func() {
+			f := filter.NewKeywordSearch("keyword")
+
+			b, err := json.Marshal(f)
+			Expect(err).NotTo(HaveOccurred())
+
+			Expect(b).To(MatchJSON(`"keyword"`))
+		})
 	})
-	assert.NoError(t, err)
 
-	for itemCount := 1; itemCount <= 10; itemCount++ {
-		item := &KeywordSearchTestItem{
-			Name:   fmt.Sprintf("name-%d", itemCount),
-			Emails: make([]string, 0),
-		}
-		for emailCount := 1; emailCount <= 5; emailCount++ {
-			item.Emails = append(item.Emails, fmt.Sprintf("email-%d(%d)@root", itemCount, emailCount))
-		}
-		_, err = db.Model(item).Insert()
-		assert.NoError(t, err)
-	}
-}
+	Context("unmarshalling json", func() {
+		When("using object syntax", func() {
+			It("should unmarshal json successfully", func() {
+				f := filter.NewKeywordSearch("")
 
-func TestFilterKeywordSearch(t *testing.T) {
-	setupKeywordSearchTestItemTable(t)
+				err := json.Unmarshal([]byte(`{"value":"keyword"}`), f)
+				Expect(err).ToNot(HaveOccurred())
 
-	tests := map[string]func(t *testing.T){
-		"With default search":          filterKeywordSearchWithDefaultSearch,
-		"With multiple columns search": filterKeywordSearchWithMultipleColumnsSearch,
-		"With sensitive search":        filterKeywordSearchWithMatchAllSearch,
-		"With sensitive start search":  filterKeywordSearchWithMatchStartSearch,
-		"With sensitive end search":    filterKeywordSearchWithMatchEndSearch,
-		"With case insensitive search": filterKeywordSearchWithCaseInsensitiveSearch,
-		"With array search":            filterKeywordSearchWithArraySearch,
-	}
-	for name, test := range tests {
-		t.Run(name, test)
-	}
-}
+				Expect(f).To(Equal(filter.NewKeywordSearch("keyword")))
+			})
+		})
 
-func filterKeywordSearchWithDefaultSearch(t *testing.T) {
-	var items []KeywordSearchTestItem
-	q := db.Model(&items)
+		When("using non-object syntax", func() {
+			It("should unmarshal json successfully", func() {
+				f := filter.NewKeywordSearch("")
 
-	filter.NewKeywordSearch("name-1").Column("name").Build(q.Where)
+				err := json.Unmarshal([]byte(`"keyword"`), f)
+				Expect(err).ToNot(HaveOccurred())
 
-	err := q.Select()
-	assert.NoError(t, err)
+				Expect(f).To(Equal(filter.NewKeywordSearch("keyword")))
+			})
+		})
+	})
 
-	if assert.Len(t, items, 2) {
-		assert.NotEmpty(t, items[0].Id)
-		assert.Equal(t, "name-1", items[0].Name)
-		assert.Equal(t, []string{"email-1(1)@root", "email-1(2)@root", "email-1(3)@root", "email-1(4)@root", "email-1(5)@root"}, items[0].Emails)
+	Context("generating sql", func() {
+		It("should generate correct SQL string", func() {
+			q := orm.NewQuery(nil, &KeywordSearchTestItem{})
 
-		assert.NotEmpty(t, items[1].Id)
-		assert.Equal(t, "name-10", items[1].Name)
-		assert.Equal(t, []string{"email-10(1)@root", "email-10(2)@root", "email-10(3)@root", "email-10(4)@root", "email-10(5)@root"}, items[1].Emails)
-	}
-}
+			q = filter.NewKeywordSearch("keyword").Column("name").Build(q.Where)
 
-func filterKeywordSearchWithMultipleColumnsSearch(t *testing.T) {
-	var items []KeywordSearchTestItem
-	q := db.Model(&items)
+			s := queryString(q)
+			Expect(s).To(Equal(`SELECT "keyword_search_test_item"."id", "keyword_search_test_item"."name", "keyword_search_test_item"."emails" FROM "keyword_search_test_items" AS "keyword_search_test_item" WHERE ("name" LIKE '%keyword%')`))
+		})
+	})
 
-	filter.NewKeywordSearch("(1)@root").Column("name").Build(q.Where)
-	filter.NewKeywordSearch("(1)@root").Column("emails,array").Build(q.WhereOr)
+	Context("integration testing", func() {
+		err := db.Model((*KeywordSearchTestItem)(nil)).CreateTable(&orm.CreateTableOptions{
+			Temp: true,
+		})
+		Expect(err).ToNot(HaveOccurred())
 
-	err := q.Select()
-	assert.NoError(t, err)
-
-	if assert.Len(t, items, 10) {
-		for idx, item := range items {
-			assert.NotEmpty(t, item.Id)
-			assert.Equal(t, fmt.Sprintf("name-%d", idx+1), item.Name)
-			emails := make([]string, 0)
-			for emailCount := 1; emailCount <= 5; emailCount++ {
-				emails = append(emails, fmt.Sprintf("email-%d(%d)@root", idx+1, emailCount))
+		for itemCount := 1; itemCount <= 10; itemCount++ {
+			item := &KeywordSearchTestItem{
+				Name:   fmt.Sprintf("name-%d", itemCount),
+				Emails: make([]string, 0),
 			}
-			assert.Equal(t, emails, item.Emails)
+			for emailCount := 1; emailCount <= 5; emailCount++ {
+				item.Emails = append(item.Emails, fmt.Sprintf("email-%d(%d)@root", itemCount, emailCount))
+			}
+			_, err = db.Model(item).Insert()
+			Expect(err).ToNot(HaveOccurred())
 		}
-	}
-}
 
-func filterKeywordSearchWithMatchAllSearch(t *testing.T) {
-	var items []KeywordSearchTestItem
-	q := db.Model(&items)
+		It("works with default search", func() {
+			var items []KeywordSearchTestItem
+			q := db.Model(&items)
 
-	filter.NewKeywordSearch("name-1").MatchAll().Column("name").Build(q.Where)
+			filter.NewKeywordSearch("name-1").Column("name").Build(q.Where)
 
-	err := q.Select()
-	assert.NoError(t, err)
+			err := q.Select()
+			Expect(err).ToNot(HaveOccurred())
 
-	if assert.Len(t, items, 1) {
-		assert.NotEmpty(t, items[0].Id)
-		assert.Equal(t, "name-1", items[0].Name)
-		assert.Equal(t, []string{"email-1(1)@root", "email-1(2)@root", "email-1(3)@root", "email-1(4)@root", "email-1(5)@root"}, items[0].Emails)
-	}
-}
+			if Expect(items).To(HaveLen(2)) {
+				Expect(items[0].Id).ToNot(BeZero())
+				Expect(items[0].Name).To(Equal("name-1"))
+				Expect(items[0].Emails).To(Equal([]string{"email-1(1)@root", "email-1(2)@root", "email-1(3)@root", "email-1(4)@root", "email-1(5)@root"}))
 
-func filterKeywordSearchWithMatchStartSearch(t *testing.T) {
-	var items []KeywordSearchTestItem
-	q := db.Model(&items)
+				Expect(items[1].Id).ToNot(BeZero())
+				Expect(items[1].Name).To(Equal("name-10"))
+				Expect(items[1].Emails).To(Equal([]string{"email-10(1)@root", "email-10(2)@root", "email-10(3)@root", "email-10(4)@root", "email-10(5)@root"}))
+			}
+		})
 
-	filter.NewKeywordSearch("name-1").MatchStart().Column("name").Build(q.Where)
+		It("works with multiple columns search", func() {
+			var items []KeywordSearchTestItem
+			q := db.Model(&items)
 
-	err := q.Select()
-	assert.NoError(t, err)
+			filter.NewKeywordSearch("(1)@root").Column("name").Build(q.Where)
+			filter.NewKeywordSearch("(1)@root").Column("emails,array").Build(q.WhereOr)
 
-	if assert.Len(t, items, 2) {
-		assert.NotEmpty(t, items[0].Id)
-		assert.Equal(t, "name-1", items[0].Name)
-		assert.Equal(t, []string{"email-1(1)@root", "email-1(2)@root", "email-1(3)@root", "email-1(4)@root", "email-1(5)@root"}, items[0].Emails)
+			err := q.Select()
+			Expect(err).ToNot(HaveOccurred())
 
-		assert.NotEmpty(t, items[1].Id)
-		assert.Equal(t, "name-10", items[1].Name)
-		assert.Equal(t, []string{"email-10(1)@root", "email-10(2)@root", "email-10(3)@root", "email-10(4)@root", "email-10(5)@root"}, items[1].Emails)
-	}
-}
+			if Expect(items).To(HaveLen(10)) {
+				for idx, item := range items {
+					Expect(item.Id).ToNot(BeZero())
+					Expect(item.Name).To(Equal(fmt.Sprintf("name-%d", idx+1)))
+					emails := make([]string, 0)
+					for emailCount := 1; emailCount <= 5; emailCount++ {
+						emails = append(emails, fmt.Sprintf("email-%d(%d)@root", idx+1, emailCount))
+					}
+					Expect(item.Emails).To(Equal(emails))
+				}
+			}
+		})
 
-func filterKeywordSearchWithMatchEndSearch(t *testing.T) {
-	var items []KeywordSearchTestItem
-	q := db.Model(&items)
+		It("works with match all search", func() {
+			var items []KeywordSearchTestItem
+			q := db.Model(&items)
 
-	filter.NewKeywordSearch("-1").MatchEnd().Column("name").Build(q.Where)
+			filter.NewKeywordSearch("name-1").MatchAll().Column("name").Build(q.Where)
 
-	err := q.Select()
-	assert.NoError(t, err)
+			err := q.Select()
+			Expect(err).ToNot(HaveOccurred())
 
-	if assert.Len(t, items, 1) {
-		assert.NotEmpty(t, items[0].Id)
-		assert.Equal(t, "name-1", items[0].Name)
-		assert.Equal(t, []string{"email-1(1)@root", "email-1(2)@root", "email-1(3)@root", "email-1(4)@root", "email-1(5)@root"}, items[0].Emails)
-	}
-}
+			if Expect(items).To(HaveLen(1)) {
+				Expect(items[0].Id).ToNot(BeZero())
+				Expect(items[0].Name).To(Equal("name-1"))
+				Expect(items[0].Emails).To(Equal([]string{"email-1(1)@root", "email-1(2)@root", "email-1(3)@root", "email-1(4)@root", "email-1(5)@root"}))
+			}
+		})
 
-func filterKeywordSearchWithCaseInsensitiveSearch(t *testing.T) {
-	var items []KeywordSearchTestItem
-	q := db.Model(&items)
+		It("works with match start search", func() {
+			var items []KeywordSearchTestItem
+			q := db.Model(&items)
 
-	filter.NewKeywordSearch("NAME-10").CaseInsensitive().Column("name").Build(q.Where)
+			filter.NewKeywordSearch("name-1").MatchStart().Column("name").Build(q.Where)
 
-	err := q.Select()
-	assert.NoError(t, err)
+			err := q.Select()
+			Expect(err).ToNot(HaveOccurred())
 
-	if assert.Len(t, items, 1) {
-		assert.NotEmpty(t, items[0].Id)
-		assert.Equal(t, "name-10", items[0].Name)
-		assert.Equal(t, []string{"email-10(1)@root", "email-10(2)@root", "email-10(3)@root", "email-10(4)@root", "email-10(5)@root"}, items[0].Emails)
-	}
-}
+			if Expect(items).To(HaveLen(2)) {
+				Expect(items[0].Id).ToNot(BeZero())
+				Expect(items[0].Name).To(Equal("name-1"))
+				Expect(items[0].Emails).To(Equal([]string{"email-1(1)@root", "email-1(2)@root", "email-1(3)@root", "email-1(4)@root", "email-1(5)@root"}))
 
-func filterKeywordSearchWithArraySearch(t *testing.T) {
-	var items []KeywordSearchTestItem
-	q := db.Model(&items)
+				Expect(items[1].Id).ToNot(BeZero())
+				Expect(items[1].Name).To(Equal("name-10"))
+				Expect(items[1].Emails).To(Equal([]string{"email-10(1)@root", "email-10(2)@root", "email-10(3)@root", "email-10(4)@root", "email-10(5)@root"}))
+			}
+		})
 
-	filter.NewKeywordSearch("email-1").Column("emails,array").Build(q.Where)
+		It("works with match end search", func() {
+			var items []KeywordSearchTestItem
+			q := db.Model(&items)
 
-	err := q.Select()
-	assert.NoError(t, err)
+			filter.NewKeywordSearch("-1").MatchEnd().Column("name").Build(q.Where)
 
-	if assert.Len(t, items, 2) {
-		assert.NotEmpty(t, items[0].Id)
-		assert.Equal(t, "name-1", items[0].Name)
-		assert.Equal(t, []string{"email-1(1)@root", "email-1(2)@root", "email-1(3)@root", "email-1(4)@root", "email-1(5)@root"}, items[0].Emails)
+			err := q.Select()
+			Expect(err).ToNot(HaveOccurred())
 
-		assert.NotEmpty(t, items[1].Id)
-		assert.Equal(t, "name-10", items[1].Name)
-		assert.Equal(t, []string{"email-10(1)@root", "email-10(2)@root", "email-10(3)@root", "email-10(4)@root", "email-10(5)@root"}, items[1].Emails)
-	}
-}
+			if Expect(items).To(HaveLen(1)) {
+				Expect(items[0].Id).ToNot(BeZero())
+				Expect(items[0].Name).To(Equal("name-1"))
+				Expect(items[0].Emails).To(Equal([]string{"email-1(1)@root", "email-1(2)@root", "email-1(3)@root", "email-1(4)@root", "email-1(5)@root"}))
+			}
+		})
+
+		It("works with case insensitive search", func() {
+			var items []KeywordSearchTestItem
+			q := db.Model(&items)
+
+			filter.NewKeywordSearch("NAME-10").CaseInsensitive().Column("name").Build(q.Where)
+
+			err := q.Select()
+			Expect(err).ToNot(HaveOccurred())
+
+			if Expect(items).To(HaveLen(1)) {
+				Expect(items[0].Id).ToNot(BeZero())
+				Expect(items[0].Name).To(Equal("name-10"))
+				Expect(items[0].Emails).To(Equal([]string{"email-10(1)@root", "email-10(2)@root", "email-10(3)@root", "email-10(4)@root", "email-10(5)@root"}))
+			}
+		})
+
+		It("works with array search", func() {
+			var items []KeywordSearchTestItem
+			q := db.Model(&items)
+
+			filter.NewKeywordSearch("email-1").Column("emails,array").Build(q.Where)
+
+			err := q.Select()
+			Expect(err).ToNot(HaveOccurred())
+
+			if Expect(items).To(HaveLen(2)) {
+				Expect(items[0].Id).ToNot(BeZero())
+				Expect(items[0].Name).To(Equal("name-1"))
+				Expect(items[0].Emails).To(Equal([]string{"email-1(1)@root", "email-1(2)@root", "email-1(3)@root", "email-1(4)@root", "email-1(5)@root"}))
+
+				Expect(items[1].Id).ToNot(BeZero())
+				Expect(items[1].Name).To(Equal("name-10"))
+				Expect(items[1].Emails).To(Equal([]string{"email-10(1)@root", "email-10(2)@root", "email-10(3)@root", "email-10(4)@root", "email-10(5)@root"}))
+			}
+		})
+	})
+})

@@ -5,74 +5,151 @@
 package filter_test
 
 import (
+	"encoding/json"
 	"fmt"
-	"testing"
 
 	"github.com/go-pg/pg/v10/orm"
 	"github.com/junwen-k/go-pgquery/pgquery/filter"
-	"github.com/stretchr/testify/assert"
+	. "github.com/onsi/ginkgo"
+	. "github.com/onsi/gomega"
 )
 
-type MatchTestItem struct {
-	Id   int64
-	Name string
-}
+var _ = Describe("Match", func() {
 
-func setupMatchTestItemTable(t *testing.T) {
-	err := db.Model((*MatchTestItem)(nil)).CreateTable(&orm.CreateTableOptions{
-		Temp: true,
+	type MatchTestItem struct {
+		Id   int64
+		Name string
+	}
+
+	Context("marshalling json", func() {
+		When("using a single value", func() {
+			It("should marshal json successfully", func() {
+				f := filter.NewMatch("match")
+
+				b, err := json.Marshal(f)
+				Expect(err).NotTo(HaveOccurred())
+
+				Expect(b).To(MatchJSON(`"match"`))
+			})
+		})
+
+		When("using an array of values", func() {
+			It("should marshal json successfully", func() {
+				f := filter.NewMatch("match_1", "match_2")
+
+				b, err := json.Marshal(f)
+				Expect(err).NotTo(HaveOccurred())
+
+				Expect(b).To(MatchJSON(`["match_1","match_2"]`))
+			})
+		})
 	})
-	assert.NoError(t, err)
 
-	for itemCount := 1; itemCount <= 10; itemCount++ {
-		item := &MatchTestItem{
-			Name: fmt.Sprintf("name-%d", itemCount),
+	Context("unmarshalling json", func() {
+		When("using object syntax", func() {
+			When("using a single value", func() {
+				It("should unmarshal json successfully", func() {
+					f := filter.NewMatch()
+
+					err := json.Unmarshal([]byte(`{"values":"match"}`), f)
+					Expect(err).ToNot(HaveOccurred())
+
+					Expect(f).To(Equal(filter.NewMatch("match")))
+				})
+			})
+
+			When("using an array of values", func() {
+				It("should unmarshal json successfully", func() {
+					f := filter.NewMatch()
+
+					err := json.Unmarshal([]byte(`{"values":["match_1","match_2"]}`), f)
+					Expect(err).ToNot(HaveOccurred())
+
+					Expect(f).To(Equal(filter.NewMatch("match_1", "match_2")))
+				})
+			})
+		})
+
+		When("using non-object syntax", func() {
+			When("using an array of values", func() {
+				It("should unmarshal json successfully", func() {
+					f := filter.NewMatch()
+
+					err := json.Unmarshal([]byte(`["match_1","match_2"]`), f)
+					Expect(err).ToNot(HaveOccurred())
+
+					Expect(f).To(Equal(filter.NewMatch("match_1", "match_2")))
+				})
+			})
+		})
+
+		When("using a single value", func() {
+			It("should unmarshal json successfully", func() {
+				f := filter.NewMatch()
+
+				err := json.Unmarshal([]byte(`"match"`), f)
+				Expect(err).ToNot(HaveOccurred())
+
+				Expect(f).To(Equal(filter.NewMatch("match")))
+			})
+		})
+	})
+
+	Context("generating sql", func() {
+		It("should generate correct SQL string", func() {
+			q := orm.NewQuery(nil, &MatchTestItem{})
+
+			q = filter.NewMatch("match").Column("name").Build(q.Where)
+
+			s := queryString(q)
+			Expect(s).To(Equal(`SELECT "match_test_item"."id", "match_test_item"."name" FROM "match_test_items" AS "match_test_item" WHERE ("name" = 'match')`))
+		})
+	})
+
+	Context("integration testing", func() {
+		err := db.Model((*MatchTestItem)(nil)).CreateTable(&orm.CreateTableOptions{
+			Temp: true,
+		})
+		Expect(err).ToNot(HaveOccurred())
+
+		for itemCount := 1; itemCount <= 10; itemCount++ {
+			item := &MatchTestItem{
+				Name: fmt.Sprintf("name-%d", itemCount),
+			}
+			_, err = db.Model(item).Insert()
+			Expect(err).ToNot(HaveOccurred())
 		}
-		_, err = db.Model(item).Insert()
-		assert.NoError(t, err)
-	}
-}
 
-func TestFilterMatch(t *testing.T) {
-	setupMatchTestItemTable(t)
+		It("works with single value", func() {
+			var items []MatchTestItem
+			q := db.Model(&items)
 
-	tests := map[string]func(t *testing.T){
-		"With single value":    filterMatchWithSingleValue,
-		"With multiple values": filterMatchWithMultipleValues,
-	}
-	for name, test := range tests {
-		t.Run(name, test)
-	}
-}
+			filter.NewMatch("name-1").Column("name").Build(q.Where)
 
-func filterMatchWithSingleValue(t *testing.T) {
-	var items []MatchTestItem
-	q := db.Model(&items)
+			err := q.Select()
+			Expect(err).ToNot(HaveOccurred())
 
-	filter.NewMatch("name-1").Column("name").Build(q.Where)
+			if Expect(items).To(HaveLen(1)) {
+				Expect(items[0].Id).ToNot(BeZero())
+				Expect(items[0].Name).To(Equal("name-1"))
+			}
+		})
 
-	err := q.Select()
-	assert.NoError(t, err)
+		It("works with multiple values", func() {
+			var items []MatchTestItem
+			q := db.Model(&items)
 
-	if assert.Len(t, items, 1) {
-		assert.NotEmpty(t, items[0].Id)
-		assert.Equal(t, "name-1", items[0].Name)
-	}
-}
+			filter.NewMatch("name-1", "name-2", "name-3").Column("name").Build(q.Where)
 
-func filterMatchWithMultipleValues(t *testing.T) {
-	var items []MatchTestItem
-	q := db.Model(&items)
+			err := q.Select()
+			Expect(err).ToNot(HaveOccurred())
 
-	filter.NewMatch("name-1", "name-2", "name-3").Column("name").Build(q.Where)
-
-	err := q.Select()
-	assert.NoError(t, err)
-
-	if assert.Len(t, items, 3) {
-		for idx, item := range items {
-			assert.NotEmpty(t, item.Id)
-			assert.Equal(t, fmt.Sprintf("name-%d", idx+1), item.Name)
-		}
-	}
-}
+			if Expect(items).To(HaveLen(3)) {
+				for idx, item := range items {
+					Expect(item.Id).ToNot(BeZero())
+					Expect(item.Name).To(Equal(fmt.Sprintf("name-%d", idx+1)))
+				}
+			}
+		})
+	})
+})

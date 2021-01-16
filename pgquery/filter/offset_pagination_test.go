@@ -5,110 +5,135 @@
 package filter_test
 
 import (
+	"encoding/json"
 	"fmt"
-	"testing"
 
 	"github.com/go-pg/pg/v10/orm"
 	"github.com/junwen-k/go-pgquery/pgquery/filter"
-	"github.com/stretchr/testify/assert"
+	. "github.com/onsi/ginkgo"
+	. "github.com/onsi/gomega"
 )
 
-type OffsetPaginationTestItem struct {
-	Id   int64
-	Name string
-}
+var _ = Describe("OffsetPagination", func() {
 
-func setupOffsetPaginationTestItemTable(t *testing.T) {
-	err := db.Model((*OffsetPaginationTestItem)(nil)).CreateTable(&orm.CreateTableOptions{
-		Temp: true,
+	type OffsetPaginationTestItem struct {
+		Id   int64
+		Name string
+	}
+
+	Context("marshalling json", func() {
+		It("should marshal json successfully", func() {
+			f := filter.NewOffsetPagination(1, 10)
+
+			b, err := json.Marshal(f)
+			Expect(err).NotTo(HaveOccurred())
+
+			Expect(b).To(MatchJSON(`{"page":1,"limit":10}`))
+		})
 	})
-	assert.NoError(t, err)
 
-	for itemCount := 1; itemCount <= 10; itemCount++ {
-		item := &OffsetPaginationTestItem{
-			Name: fmt.Sprintf("name-%d", itemCount),
+	Context("unmarshalling json", func() {
+		It("should unmarshal json successfully", func() {
+			f := filter.NewOffsetPagination(0, 0)
+
+			err := json.Unmarshal([]byte(`{"page":1,"limit":10}`), f)
+			Expect(err).ToNot(HaveOccurred())
+
+			Expect(f).To(Equal(filter.NewOffsetPagination(1, 10)))
+		})
+	})
+
+	Context("generating sql", func() {
+		It("should generate correct SQL string", func() {
+			q := orm.NewQuery(nil, &OffsetPaginationTestItem{})
+
+			q = filter.NewOffsetPagination(1, 10).Build(q)
+
+			s := queryString(q)
+			Expect(s).To(Equal(`SELECT "offset_pagination_test_item"."id", "offset_pagination_test_item"."name" FROM "offset_pagination_test_items" AS "offset_pagination_test_item" LIMIT 10`))
+		})
+	})
+
+	Context("integration testing", func() {
+		err := db.Model((*OffsetPaginationTestItem)(nil)).CreateTable(&orm.CreateTableOptions{
+			Temp: true,
+		})
+		Expect(err).ToNot(HaveOccurred())
+
+		for itemCount := 1; itemCount <= 10; itemCount++ {
+			item := &OffsetPaginationTestItem{
+				Name: fmt.Sprintf("name-%d", itemCount),
+			}
+			_, err = db.Model(item).Insert()
+			Expect(err).ToNot(HaveOccurred())
 		}
-		_, err = db.Model(item).Insert()
-		assert.NoError(t, err)
-	}
-}
 
-func TestFilterPagination(t *testing.T) {
-	setupOffsetPaginationTestItemTable(t)
+		It("works with page and limit", func() {
+			var items []OffsetPaginationTestItem
+			q := db.Model(&items)
 
-	tests := map[string]func(t *testing.T){
-		"With page and limit": filterOffsetPaginationWithPageAndLimit,
-		"With default limit":  filterOffsetPaginationWithDefaultLimit,
-	}
-	for name, test := range tests {
-		t.Run(name, test)
-	}
-}
+			filter.NewOffsetPagination(1, 5).Build(q)
 
-func filterOffsetPaginationWithPageAndLimit(t *testing.T) {
-	var items []OffsetPaginationTestItem
-	q := db.Model(&items)
+			err := q.Select()
+			Expect(err).ToNot(HaveOccurred())
 
-	filter.NewOffsetPagination(1, 5).Build(q)
+			if Expect(items).To(HaveLen(5)) {
+				for idx, item := range items {
+					Expect(item.Id).ToNot(BeZero())
+					Expect(item.Name).To(Equal(fmt.Sprintf("name-%d", idx+1)))
+				}
+			}
+		})
 
-	err := q.Select()
-	assert.NoError(t, err)
+		It("works with no page", func() {
+			var items []OffsetPaginationTestItem
+			q := db.Model(&items)
 
-	if assert.Len(t, items, 5) {
-		for idx, item := range items {
-			assert.NotEmpty(t, item.Id)
-			assert.Equal(t, fmt.Sprintf("name-%d", idx+1), item.Name)
-		}
-	}
-}
+			filter.NewOffsetPagination(0, 5).Build(q)
 
-func filterPaginationWithNoPage(t *testing.T) {
-	var items []OffsetPaginationTestItem
-	q := db.Model(&items)
+			err := q.Select()
+			Expect(err).ToNot(HaveOccurred())
 
-	filter.NewOffsetPagination(0, 5).Build(q)
+			if Expect(items).To(HaveLen(5)) {
+				for idx, item := range items {
+					Expect(item.Id).ToNot(BeZero())
+					Expect(item.Name).To(Equal(fmt.Sprintf("name-%d", idx+1)))
+				}
+			}
+		})
 
-	err := q.Select()
-	assert.NoError(t, err)
+		It("works with default limit", func() {
+			var items []OffsetPaginationTestItem
+			q := db.Model(&items)
 
-	if assert.Len(t, items, 5) {
-		for idx, item := range items {
-			assert.NotEmpty(t, item.Id)
-			assert.Equal(t, fmt.Sprintf("name-%d", idx+1), item.Name)
-		}
-	}
-}
+			filter.NewOffsetPagination(1, 0).DefaultLimit(5).Build(q)
 
-func filterOffsetPaginationWithDefaultLimit(t *testing.T) {
-	var items []OffsetPaginationTestItem
-	q := db.Model(&items)
+			err := q.Select()
+			Expect(err).ToNot(HaveOccurred())
 
-	filter.NewOffsetPagination(1, 0).DefaultLimit(5).Build(q)
+			if Expect(items).To(HaveLen(5)) {
+				for idx, item := range items {
+					Expect(item.Id).ToNot(BeZero())
+					Expect(item.Name).To(Equal(fmt.Sprintf("name-%d", idx+1)))
+				}
+			}
+		})
 
-	err := q.Select()
-	assert.NoError(t, err)
+		It("works with no limit", func() {
+			var items []OffsetPaginationTestItem
+			q := db.Model(&items)
 
-	if assert.Len(t, items, 5) {
-		for idx, item := range items {
-			assert.NotEmpty(t, item.Id)
-			assert.Equal(t, fmt.Sprintf("name-%d", idx+1), item.Name)
-		}
-	}
-}
+			filter.NewOffsetPagination(1, 0).Build(q)
 
-func filterPaginationWithNoLimit(t *testing.T) {
-	var items []OffsetPaginationTestItem
-	q := db.Model(&items)
+			err := q.Select()
+			Expect(err).ToNot(HaveOccurred())
 
-	filter.NewOffsetPagination(1, 0).Build(q)
-
-	err := q.Select()
-	assert.NoError(t, err)
-
-	if assert.Len(t, items, 10) {
-		for idx, item := range items {
-			assert.NotEmpty(t, item.Id)
-			assert.Equal(t, fmt.Sprintf("name-%d", idx+1), item.Name)
-		}
-	}
-}
+			if Expect(items).To(HaveLen(10)) {
+				for idx, item := range items {
+					Expect(item.Id).ToNot(BeZero())
+					Expect(item.Name).To(Equal(fmt.Sprintf("name-%d", idx+1)))
+				}
+			}
+		})
+	})
+})

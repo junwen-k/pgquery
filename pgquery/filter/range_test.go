@@ -5,132 +5,154 @@
 package filter_test
 
 import (
-	"testing"
+	"encoding/json"
 
 	"github.com/go-pg/pg/v10/orm"
 	"github.com/junwen-k/go-pgquery/pgquery/filter"
-	"github.com/stretchr/testify/assert"
+	. "github.com/onsi/ginkgo"
+	. "github.com/onsi/gomega"
 )
 
-type RangeTestItem struct {
-	Id     int64
-	Age    int
-	Height int
-}
+var _ = Describe("Range", func() {
 
-func setupRangeTestItemTable(t *testing.T) {
-	err := db.Model((*RangeTestItem)(nil)).CreateTable(&orm.CreateTableOptions{
-		Temp: true,
+	type RangeTestItem struct {
+		Id     int64
+		Age    int
+		Height int
+	}
+
+	Context("marshalling json", func() {
+		It("should marshal json successfully", func() {
+			f := filter.NewRange().GreaterThan(0)
+
+			b, err := json.Marshal(f)
+			Expect(err).NotTo(HaveOccurred())
+
+			Expect(b).To(MatchJSON(`{"gt":0}`))
+		})
 	})
-	assert.NoError(t, err)
 
-	for itemCount := 1; itemCount <= 10; itemCount++ {
-		item := &RangeTestItem{
-			Age:    itemCount,
-			Height: (itemCount * 10) + 130,
+	Context("unmarshalling json", func() {
+		It("should unmarshal json successfully", func() {
+			f := filter.NewRange()
+
+			err := json.Unmarshal([]byte(`{"gt":0}`), f)
+			Expect(err).ToNot(HaveOccurred())
+
+			Expect(f).To(Equal(filter.NewRange().GreaterThan(0)))
+		})
+	})
+
+	Context("generating sql", func() {
+		It("should generate correct SQL string", func() {
+			q := orm.NewQuery(nil, &RangeTestItem{})
+
+			q = filter.NewRange().GreaterThan(0).Column("age").Build(q.WhereGroup)
+
+			s := queryString(q)
+			Expect(s).To(Equal(`SELECT "range_test_item"."id", "range_test_item"."age", "range_test_item"."height" FROM "range_test_items" AS "range_test_item" WHERE (("age" > 0))`))
+		})
+	})
+
+	Context("integration testing", func() {
+		err := db.Model((*RangeTestItem)(nil)).CreateTable(&orm.CreateTableOptions{
+			Temp: true,
+		})
+		Expect(err).ToNot(HaveOccurred())
+
+		for itemCount := 1; itemCount <= 10; itemCount++ {
+			item := &RangeTestItem{
+				Age:    itemCount,
+				Height: (itemCount * 10) + 130,
+			}
+			_, err = db.Model(item).Insert()
+			Expect(err).ToNot(HaveOccurred())
 		}
-		_, err = db.Model(item).Insert()
-		assert.NoError(t, err)
-	}
-}
 
-func TestFilterRange(t *testing.T) {
-	setupRangeTestItemTable(t)
+		It("works with greater than filter", func() {
+			var items []RangeTestItem
+			q := db.Model(&items)
 
-	tests := map[string]func(t *testing.T){
-		"With greater than filter":       filterRangeWithGtFilter,
-		"With greater than equal filter": filterRangeWithGteFilter,
-		"With less than filter":          filterRangeWithLtFilter,
-		"With less than equal filter":    filterRangeWithLteFilter,
-		"With complex filter":            filterRangeWithComplexFilter,
-	}
-	for name, test := range tests {
-		t.Run(name, test)
-	}
-}
+			filter.NewRange().GreaterThan(5).Column("age").Build(q.WhereGroup)
 
-func filterRangeWithGtFilter(t *testing.T) {
-	var items []RangeTestItem
-	q := db.Model(&items)
+			err := q.Select()
+			Expect(err).ToNot(HaveOccurred())
 
-	filter.NewRange().GreaterThan(5).Column("age").Build(q.WhereGroup)
+			if Expect(items).To(HaveLen(5)) {
+				for idx, item := range items {
+					Expect(item.Id).ToNot(BeZero())
+					Expect(item.Age).To(Equal(idx + 6))
+				}
+			}
+		})
 
-	err := q.Select()
-	assert.NoError(t, err)
+		It("works with greater than equal filter", func() {
+			var items []RangeTestItem
+			q := db.Model(&items)
 
-	if assert.Len(t, items, 5) {
-		for idx, item := range items {
-			assert.NotEmpty(t, item.Id)
-			assert.Equal(t, idx+6, item.Age)
-		}
-	}
-}
+			filter.NewRange().GreaterThanEqual(5).Column("age").Build(q.WhereGroup)
 
-func filterRangeWithGteFilter(t *testing.T) {
-	var items []RangeTestItem
-	q := db.Model(&items)
+			err := q.Select()
+			Expect(err).ToNot(HaveOccurred())
 
-	filter.NewRange().GreaterThanEqual(5).Column("age").Build(q.WhereGroup)
+			if Expect(items).To(HaveLen(6)) {
+				for idx, item := range items {
+					Expect(item.Id).ToNot(BeZero())
+					Expect(item.Age).To(Equal(idx + 5))
+				}
+			}
+		})
 
-	err := q.Select()
-	assert.NoError(t, err)
+		It("works with less than filter", func() {
+			var items []RangeTestItem
+			q := db.Model(&items)
 
-	if assert.Len(t, items, 6) {
-		for idx, item := range items {
-			assert.NotEmpty(t, item.Id)
-			assert.Equal(t, idx+5, item.Age)
-		}
-	}
-}
+			filter.NewRange().LessThan(5).Column("age").Build(q.WhereGroup)
 
-func filterRangeWithLtFilter(t *testing.T) {
-	var items []RangeTestItem
-	q := db.Model(&items)
+			err := q.Select()
+			Expect(err).ToNot(HaveOccurred())
 
-	filter.NewRange().LessThan(5).Column("age").Build(q.WhereGroup)
+			if Expect(items).To(HaveLen(4)) {
+				for idx, item := range items {
+					Expect(item.Id).ToNot(BeZero())
+					Expect(item.Age).To(Equal(idx + 1))
+				}
+			}
+		})
 
-	err := q.Select()
-	assert.NoError(t, err)
+		It("works with less than equal filter", func() {
+			var items []RangeTestItem
+			q := db.Model(&items)
 
-	if assert.Len(t, items, 4) {
-		for idx, item := range items {
-			assert.NotEmpty(t, item.Id)
-			assert.Equal(t, idx+1, item.Age)
-		}
-	}
-}
+			filter.NewRange().LessThanEqual(5).Column("age").Build(q.WhereGroup)
 
-func filterRangeWithLteFilter(t *testing.T) {
-	var items []RangeTestItem
-	q := db.Model(&items)
+			err := q.Select()
+			Expect(err).ToNot(HaveOccurred())
 
-	filter.NewRange().LessThanEqual(5).Column("age").Build(q.WhereGroup)
+			if Expect(items).To(HaveLen(5)) {
+				for idx, item := range items {
+					Expect(item.Id).ToNot(BeZero())
+					Expect(item.Age).To(Equal(idx + 1))
+				}
+			}
+		})
 
-	err := q.Select()
-	assert.NoError(t, err)
+		It("works with complex filter", func() {
+			var items []RangeTestItem
+			q := db.Model(&items)
 
-	if assert.Len(t, items, 5) {
-		for idx, item := range items {
-			assert.NotEmpty(t, item.Id)
-			assert.Equal(t, idx+1, item.Age)
-		}
-	}
-}
+			filter.NewRange().GreaterThan(5).LessThan(8).Column("age").Build(q.WhereGroup)
+			filter.NewRange().GreaterThan(5).LessThan(8).Column("height").Build(q.WhereOrGroup)
 
-func filterRangeWithComplexFilter(t *testing.T) {
-	var items []RangeTestItem
-	q := db.Model(&items)
+			err := q.Select()
+			Expect(err).ToNot(HaveOccurred())
 
-	filter.NewRange().GreaterThan(5).LessThan(8).Column("age").Build(q.WhereGroup)
-	filter.NewRange().GreaterThan(5).LessThan(8).Column("height").Build(q.WhereOrGroup)
-
-	err := q.Select()
-	assert.NoError(t, err)
-
-	if assert.Len(t, items, 2) {
-		for idx, item := range items {
-			assert.NotEmpty(t, item.Id)
-			assert.Equal(t, idx+6, item.Age)
-		}
-	}
-}
+			if Expect(items).To(HaveLen(2)) {
+				for idx, item := range items {
+					Expect(item.Id).ToNot(BeZero())
+					Expect(item.Age).To(Equal(idx + 6))
+				}
+			}
+		})
+	})
+})
