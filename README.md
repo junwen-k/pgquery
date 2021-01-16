@@ -6,3 +6,7 @@
 Querying made easier with a set of Postgres common query helpers for [go-pg](https://github.com/go-pg/pg).
 
 ## Getting Started
+
+## License
+
+[MIT](./LICENSE)
