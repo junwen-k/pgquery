@@ -384,10 +384,10 @@ func (f *RelativeDateTimeRange) AsAt(at time.Time) *RelativeDateTimeRange {
 	return f
 }
 
-// Build build query.
-func (f *RelativeDateTimeRange) Build(condGroupFn condGroupFn) *orm.Query {
+// Appender returns parameters for cond group appender.
+func (f *RelativeDateTimeRange) Appender() applyFn {
 	f.init()
-	return condGroupFn(func(q *orm.Query) (*orm.Query, error) {
+	return func(q *orm.Query) (*orm.Query, error) {
 		if ago := f.Ago.build(); ago != "" {
 			q.Where("? >= ?::timestamp - interval ?", types.Ident(f.column), f.At.Format(time.RFC3339Nano), ago)
 		} else {
@@ -399,5 +399,5 @@ func (f *RelativeDateTimeRange) Build(condGroupFn condGroupFn) *orm.Query {
 			q.Where("? <= ?::timestamp", types.Ident(f.column), f.At.Format(time.RFC3339Nano))
 		}
 		return q, nil
-	})
+	}
 }

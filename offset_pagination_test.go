@@ -47,7 +47,7 @@ var _ = Describe("OffsetPagination", func() {
 		It("should generate correct SQL string", func() {
 			q := orm.NewQuery(nil, &OffsetPaginationTestItem{})
 
-			q = pgquery.NewOffsetPagination().Offset(1, 10).Build(q)
+			q.Apply(pgquery.NewOffsetPagination().Offset(1, 10).Appender())
 
 			s := queryString(q)
 			Expect(s).To(Equal(`SELECT "offset_pagination_test_item"."id", "offset_pagination_test_item"."name" FROM "offset_pagination_test_items" AS "offset_pagination_test_item" LIMIT 10`))
@@ -72,7 +72,7 @@ var _ = Describe("OffsetPagination", func() {
 			var items []OffsetPaginationTestItem
 			q := db.Model(&items)
 
-			pgquery.NewOffsetPagination().Offset(1, 5).Build(q)
+			q.Apply(pgquery.NewOffsetPagination().Offset(1, 5).Appender())
 
 			err := q.Select()
 			Expect(err).ToNot(HaveOccurred())
@@ -89,7 +89,7 @@ var _ = Describe("OffsetPagination", func() {
 			var items []OffsetPaginationTestItem
 			q := db.Model(&items)
 
-			pgquery.NewOffsetPagination().Offset(0, 5).Build(q)
+			q.Apply(pgquery.NewOffsetPagination().Offset(0, 5).Appender())
 
 			err := q.Select()
 			Expect(err).ToNot(HaveOccurred())
@@ -106,7 +106,7 @@ var _ = Describe("OffsetPagination", func() {
 			var items []OffsetPaginationTestItem
 			q := db.Model(&items)
 
-			pgquery.NewOffsetPagination().Offset(1, 0).Build(q)
+			q.Apply(pgquery.NewOffsetPagination().Offset(1, 0).Appender())
 
 			err := q.Select()
 			Expect(err).ToNot(HaveOccurred())

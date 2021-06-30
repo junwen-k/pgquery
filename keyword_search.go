@@ -122,10 +122,10 @@ func (f *KeywordSearch) buildColumn(column string) interface{} {
 	return types.Ident(column)
 }
 
-// Build build query.
-func (f *KeywordSearch) Build(condFn condFn) *orm.Query {
+// Appender returns parameters for cond appender.
+func (f *KeywordSearch) Appender() (string, interface{}, interface{}, interface{}) {
 	v := f.buildValue()
 	column := f.buildColumn(f.column)
 	like := f.buildLike()
-	return condFn("? ? ?", column, types.Safe(like), v)
+	return "? ? ?", column, types.Safe(like), v
 }

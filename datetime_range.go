@@ -198,9 +198,9 @@ func (f *DateTimeRange) To(value time.Time) *DateTimeRange {
 	return f
 }
 
-// Build build query.
-func (f *DateTimeRange) Build(condGroupFn condGroupFn) *orm.Query {
-	return condGroupFn(func(q *orm.Query) (*orm.Query, error) {
+// Appender returns parameters for cond group appender.
+func (f *DateTimeRange) Appender() applyFn {
+	return func(q *orm.Query) (*orm.Query, error) {
 		if f.Lt != nil {
 			q.Where("? < ?", types.Ident(f.column), f.Lt.Format(time.RFC3339Nano))
 		}
@@ -214,5 +214,5 @@ func (f *DateTimeRange) Build(condGroupFn condGroupFn) *orm.Query {
 			q.Where("? > ?", types.Ident(f.column), f.Gt.Format(time.RFC3339Nano))
 		}
 		return q, nil
-	})
+	}
 }

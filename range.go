@@ -55,9 +55,9 @@ func (f *Range) LessThanEqual(value int) *Range {
 	return f
 }
 
-// Build build query.
-func (f *Range) Build(condGroupFn condGroupFn) *orm.Query {
-	return condGroupFn(func(q *orm.Query) (*orm.Query, error) {
+// Appender returns parameters for cond group appender.
+func (f *Range) Appender() applyFn {
+	return func(q *orm.Query) (*orm.Query, error) {
 		if f.Lt != nil {
 			q.Where("? < ?", types.Ident(f.column), f.Lt)
 		}
@@ -71,5 +71,5 @@ func (f *Range) Build(condGroupFn condGroupFn) *orm.Query {
 			q.Where("? > ?", types.Ident(f.column), f.Gt)
 		}
 		return q, nil
-	})
+	}
 }

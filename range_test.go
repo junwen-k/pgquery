@@ -47,7 +47,7 @@ var _ = Describe("Range", func() {
 		It("should generate correct SQL string", func() {
 			q := orm.NewQuery(nil, &RangeTestItem{})
 
-			q = pgquery.NewRange("age").GreaterThan(0).Build(q.WhereGroup)
+			q.WhereGroup(pgquery.NewRange("age").GreaterThan(0).Appender())
 
 			s := queryString(q)
 			Expect(s).To(Equal(`SELECT "range_test_item"."id", "range_test_item"."age", "range_test_item"."height" FROM "range_test_items" AS "range_test_item" WHERE (("age" > 0))`))
@@ -73,7 +73,7 @@ var _ = Describe("Range", func() {
 			var items []RangeTestItem
 			q := db.Model(&items)
 
-			pgquery.NewRange("age").GreaterThan(5).Build(q.WhereGroup)
+			q.WhereGroup(pgquery.NewRange("age").GreaterThan(5).Appender())
 
 			err := q.Select()
 			Expect(err).ToNot(HaveOccurred())
@@ -90,7 +90,7 @@ var _ = Describe("Range", func() {
 			var items []RangeTestItem
 			q := db.Model(&items)
 
-			pgquery.NewRange("age").GreaterThanEqual(5).Build(q.WhereGroup)
+			q.WhereGroup(pgquery.NewRange("age").GreaterThanEqual(5).Appender())
 
 			err := q.Select()
 			Expect(err).ToNot(HaveOccurred())
@@ -107,7 +107,7 @@ var _ = Describe("Range", func() {
 			var items []RangeTestItem
 			q := db.Model(&items)
 
-			pgquery.NewRange("age").LessThan(5).Build(q.WhereGroup)
+			q.WhereGroup(pgquery.NewRange("age").LessThan(5).Appender())
 
 			err := q.Select()
 			Expect(err).ToNot(HaveOccurred())
@@ -124,7 +124,7 @@ var _ = Describe("Range", func() {
 			var items []RangeTestItem
 			q := db.Model(&items)
 
-			pgquery.NewRange("age").LessThanEqual(5).Build(q.WhereGroup)
+			q.WhereGroup(pgquery.NewRange("age").LessThanEqual(5).Appender())
 
 			err := q.Select()
 			Expect(err).ToNot(HaveOccurred())
@@ -141,8 +141,8 @@ var _ = Describe("Range", func() {
 			var items []RangeTestItem
 			q := db.Model(&items)
 
-			pgquery.NewRange("age").GreaterThan(5).LessThan(8).Build(q.WhereGroup)
-			pgquery.NewRange("height").GreaterThan(5).LessThan(8).Build(q.WhereOrGroup)
+			q.WhereGroup(pgquery.NewRange("age").GreaterThan(5).LessThan(8).Appender())
+			q.WhereOrGroup(pgquery.NewRange("height").GreaterThan(5).LessThan(8).Appender())
 
 			err := q.Select()
 			Expect(err).ToNot(HaveOccurred())

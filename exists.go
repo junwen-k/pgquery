@@ -8,7 +8,6 @@ import (
 	"encoding/json"
 	"errors"
 
-	"github.com/go-pg/pg/v10/orm"
 	"github.com/go-pg/pg/v10/types"
 )
 
@@ -82,8 +81,8 @@ func (f *Exists) buildValue() string {
 	return "IS NULL"
 }
 
-// Build build query.
-func (f *Exists) Build(condFn condFn) *orm.Query {
+// Appender returns parameters for cond appender.
+func (f *Exists) Appender() (string, interface{}, interface{}) {
 	v := f.buildValue()
-	return condFn("? ?", types.Ident(f.column), types.Safe(v))
+	return "? ?", types.Ident(f.column), types.Safe(v)
 }

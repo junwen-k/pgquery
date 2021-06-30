@@ -85,7 +85,7 @@ var _ = Describe("RelativeDatetimeRange", func() {
 			q := orm.NewQuery(nil, &RelativeDatetimeRangeTestItem{})
 
 			f := pgquery.NewRelativeDateTimeRange("created_at").AsAt(t).AgoHour(5)
-			q = f.Build(q.WhereGroup)
+			q.WhereGroup(f.Appender())
 
 			s := queryString(q)
 			Expect(s).To(Equal(`SELECT "relative_datetime_range_test_item"."id", "relative_datetime_range_test_item"."name", "relative_datetime_range_test_item"."created_at" FROM "relative_datetime_range_test_items" AS "relative_datetime_range_test_item" WHERE (("created_at" >= '2021-01-15T00:00:00Z'::timestamp - interval '5 hours') AND ("created_at" <= '2021-01-15T00:00:00Z'::timestamp))`))
@@ -115,7 +115,7 @@ var _ = Describe("RelativeDatetimeRange", func() {
 			var items []RelativeDatetimeRangeTestItem
 			q := db.Model(&items)
 
-			pgquery.NewRelativeDateTimeRange("created_at").AsAt(testTime).AgoHour(5).Build(q.WhereGroup)
+			q.WhereGroup(pgquery.NewRelativeDateTimeRange("created_at").AsAt(testTime).AgoHour(5).Appender())
 
 			err := q.Select()
 			Expect(err).ToNot(HaveOccurred())
@@ -148,7 +148,7 @@ var _ = Describe("RelativeDatetimeRange", func() {
 			var items []RelativeDatetimeRangeTestItem
 			q := db.Model(&items)
 
-			pgquery.NewRelativeDateTimeRange("created_at").AsAt(testTime).UpcomingHour(5).Build(q.WhereGroup)
+			q.WhereGroup(pgquery.NewRelativeDateTimeRange("created_at").AsAt(testTime).UpcomingHour(5).Appender())
 
 			err := q.Select()
 			Expect(err).ToNot(HaveOccurred())
@@ -176,7 +176,7 @@ var _ = Describe("RelativeDatetimeRange", func() {
 			var items []RelativeDatetimeRangeTestItem
 			q := db.Model(&items)
 
-			pgquery.NewRelativeDateTimeRange("created_at").AsAt(testTime).AgoHour(5).UpcomingHour(5).Build(q.WhereGroup)
+			q.WhereGroup(pgquery.NewRelativeDateTimeRange("created_at").AsAt(testTime).AgoHour(5).UpcomingHour(5).Appender())
 
 			err := q.Select()
 			Expect(err).ToNot(HaveOccurred())

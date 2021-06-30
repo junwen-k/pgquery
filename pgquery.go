@@ -8,12 +8,4 @@ import (
 	"github.com/go-pg/pg/v10/orm"
 )
 
-// Filter common filter interface.
-type Filter interface {
-	Apply(*orm.Query, condFn) *orm.Query
-	ApplyGroup(*orm.Query, condGroupFn) *orm.Query
-}
-
-type condFn = func(condition string, params ...interface{}) *orm.Query
-
-type condGroupFn = func(fn func(*orm.Query) (*orm.Query, error)) *orm.Query
+type applyFn = func(q *orm.Query) (*orm.Query, error)

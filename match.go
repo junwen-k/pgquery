@@ -8,7 +8,6 @@ import (
 	"encoding/json"
 	"errors"
 
-	"github.com/go-pg/pg/v10/orm"
 	"github.com/go-pg/pg/v10/types"
 )
 
@@ -58,8 +57,6 @@ func (f *Match) MarshalJSON() ([]byte, error) {
 	switch {
 	case len(f.Values) == 1:
 		return json.Marshal(f.Values[0])
-	case len(f.Values) > 1:
-		return json.Marshal(f.Values)
 	default:
 		return json.Marshal(f.Values)
 	}
@@ -84,14 +81,12 @@ func (f *Match) Matches(values ...interface{}) *Match {
 	return f
 }
 
-// Build build query.
-func (f *Match) Build(condFn condFn) *orm.Query {
+// Appender returns parameters for cond appender.
+func (f *Match) Appender() (string, interface{}, interface{}) {
 	switch {
 	case len(f.Values) > 1:
-		return condFn("? IN (?)", types.Ident(f.column), types.In(f.Values))
-	case len(f.Values) == 1:
-		return condFn("? = ?", types.Ident(f.column), f.Values[0])
+		return "? IN (?)", types.Ident(f.column), types.In(f.Values)
 	default:
-		return nil
+		return "? = ?", types.Ident(f.column), f.Values[0]
 	}
 }

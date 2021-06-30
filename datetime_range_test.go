@@ -85,7 +85,7 @@ var _ = Describe("DatetimeRange", func() {
 		It("should generate correct SQL string", func() {
 			q := orm.NewQuery(nil, &DatetimeRangeTestItem{})
 
-			q = pgquery.NewDateTimeRange("created_at", time.RFC3339).After(t).Build(q.WhereGroup)
+			q.WhereGroup(pgquery.NewDateTimeRange("created_at", time.RFC3339).After(t).Appender())
 
 			s := queryString(q)
 			Expect(s).To(Equal(`SELECT "datetime_range_test_item"."id", "datetime_range_test_item"."name", "datetime_range_test_item"."created_at" FROM "datetime_range_test_items" AS "datetime_range_test_item" WHERE (("created_at" > '2021-01-15T00:00:00Z'))`))
@@ -111,7 +111,7 @@ var _ = Describe("DatetimeRange", func() {
 			var items []DatetimeRangeTestItem
 			q := db.Model(&items)
 
-			pgquery.NewDateTimeRange("created_at", time.RFC3339).After(testTime.Add(5 * time.Hour)).Build(q.WhereGroup)
+			q.WhereGroup(pgquery.NewDateTimeRange("created_at", time.RFC3339).After(testTime.Add(5 * time.Hour)).Appender())
 
 			err := q.Select()
 			Expect(err).ToNot(HaveOccurred())
@@ -132,7 +132,7 @@ var _ = Describe("DatetimeRange", func() {
 			var items []DatetimeRangeTestItem
 			q := db.Model(&items)
 
-			pgquery.NewDateTimeRange("created_at", time.RFC3339).Before(testTime.Add(6 * time.Hour)).Build(q.WhereGroup)
+			q.WhereGroup(pgquery.NewDateTimeRange("created_at", time.RFC3339).Before(testTime.Add(6 * time.Hour)).Appender())
 
 			err := q.Select()
 			Expect(err).ToNot(HaveOccurred())
@@ -153,7 +153,7 @@ var _ = Describe("DatetimeRange", func() {
 			var items []DatetimeRangeTestItem
 			q := db.Model(&items)
 
-			pgquery.NewDateTimeRange("created_at", time.RFC3339).From(testTime.Add(5 * time.Hour)).Build(q.WhereGroup)
+			q.WhereGroup(pgquery.NewDateTimeRange("created_at", time.RFC3339).From(testTime.Add(5 * time.Hour)).Appender())
 
 			err := q.Select()
 			Expect(err).ToNot(HaveOccurred())
@@ -174,7 +174,7 @@ var _ = Describe("DatetimeRange", func() {
 			var items []DatetimeRangeTestItem
 			q := db.Model(&items)
 
-			pgquery.NewDateTimeRange("created_at", time.RFC3339).To(testTime.Add(5 * time.Hour)).Build(q.WhereGroup)
+			q.WhereGroup(pgquery.NewDateTimeRange("created_at", time.RFC3339).To(testTime.Add(5 * time.Hour)).Appender())
 
 			err := q.Select()
 			Expect(err).ToNot(HaveOccurred())
@@ -195,7 +195,7 @@ var _ = Describe("DatetimeRange", func() {
 			var items []DatetimeRangeTestItem
 			q := db.Model(&items)
 
-			pgquery.NewDateTimeRange("created_at", time.RFC3339).From(testTime.Add(2 * time.Hour)).To(testTime.Add(6 * time.Hour)).Build(q.WhereGroup)
+			q.WhereGroup(pgquery.NewDateTimeRange("created_at", time.RFC3339).From(testTime.Add(2 * time.Hour)).To(testTime.Add(6 * time.Hour)).Appender())
 
 			err := q.Select()
 			Expect(err).ToNot(HaveOccurred())

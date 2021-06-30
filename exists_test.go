@@ -73,7 +73,7 @@ var _ = Describe("Exists", func() {
 		It("should generate correct SQL string", func() {
 			q := orm.NewQuery(nil, &ExistsTestItem{})
 
-			q = pgquery.NewExists("name").ShouldExists().Build(q.Where)
+			q.Where(pgquery.NewExists("name").ShouldExists().Appender())
 
 			s := queryString(q)
 			Expect(s).To(Equal(`SELECT "exists_test_item"."id", "exists_test_item"."name" FROM "exists_test_items" AS "exists_test_item" WHERE ("name" IS NOT NULL)`))
@@ -102,7 +102,7 @@ var _ = Describe("Exists", func() {
 			var items []ExistsTestItem
 			q := db.Model(&items)
 
-			pgquery.NewExists("name").ShouldExists().Build(q.Where)
+			q.Where(pgquery.NewExists("name").ShouldExists().Appender())
 
 			err := q.Select()
 			Expect(err).ToNot(HaveOccurred())
@@ -119,7 +119,7 @@ var _ = Describe("Exists", func() {
 			var items []ExistsTestItem
 			q := db.Model(&items)
 
-			pgquery.NewExists("name").ShouldNotExists().Build(q.Where)
+			q.Where(pgquery.NewExists("name").ShouldNotExists().Appender())
 
 			err := q.Select()
 			Expect(err).ToNot(HaveOccurred())

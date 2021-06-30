@@ -61,7 +61,7 @@ var _ = Describe("KeywordSearch", func() {
 		It("should generate correct SQL string", func() {
 			q := orm.NewQuery(nil, &KeywordSearchTestItem{})
 
-			q = pgquery.NewKeywordSearch("name").Keyword("keyword").Build(q.Where)
+			q.Where(pgquery.NewKeywordSearch("name").Keyword("keyword").Appender())
 
 			s := queryString(q)
 			Expect(s).To(Equal(`SELECT "keyword_search_test_item"."id", "keyword_search_test_item"."name", "keyword_search_test_item"."emails" FROM "keyword_search_test_items" AS "keyword_search_test_item" WHERE ("name" LIKE '%keyword%')`))
@@ -90,7 +90,7 @@ var _ = Describe("KeywordSearch", func() {
 			var items []KeywordSearchTestItem
 			q := db.Model(&items)
 
-			pgquery.NewKeywordSearch("name").Keyword("name-1").Build(q.Where)
+			q.Where(pgquery.NewKeywordSearch("name").Keyword("name-1").Appender())
 
 			err := q.Select()
 			Expect(err).ToNot(HaveOccurred())
@@ -110,8 +110,8 @@ var _ = Describe("KeywordSearch", func() {
 			var items []KeywordSearchTestItem
 			q := db.Model(&items)
 
-			pgquery.NewKeywordSearch("name").Keyword("(1)@root").Build(q.Where)
-			pgquery.NewKeywordSearch("emails,array").Keyword("(1)@root").Build(q.WhereOr)
+			q.Where(pgquery.NewKeywordSearch("name").Keyword("(1)@root").Appender())
+			q.WhereOr(pgquery.NewKeywordSearch("emails,array").Keyword("(1)@root").Appender())
 
 			err := q.Select()
 			Expect(err).ToNot(HaveOccurred())
@@ -133,7 +133,7 @@ var _ = Describe("KeywordSearch", func() {
 			var items []KeywordSearchTestItem
 			q := db.Model(&items)
 
-			pgquery.NewKeywordSearch("name").MatchAll().Keyword("name-1").Build(q.Where)
+			q.Where(pgquery.NewKeywordSearch("name").MatchAll().Keyword("name-1").Appender())
 
 			err := q.Select()
 			Expect(err).ToNot(HaveOccurred())
@@ -149,7 +149,7 @@ var _ = Describe("KeywordSearch", func() {
 			var items []KeywordSearchTestItem
 			q := db.Model(&items)
 
-			pgquery.NewKeywordSearch("name").MatchStart().Keyword("name-1").Build(q.Where)
+			q.Where(pgquery.NewKeywordSearch("name").MatchStart().Keyword("name-1").Appender())
 
 			err := q.Select()
 			Expect(err).ToNot(HaveOccurred())
@@ -169,7 +169,7 @@ var _ = Describe("KeywordSearch", func() {
 			var items []KeywordSearchTestItem
 			q := db.Model(&items)
 
-			pgquery.NewKeywordSearch("name").MatchEnd().Keyword("-1").Build(q.Where)
+			q.Where(pgquery.NewKeywordSearch("name").MatchEnd().Keyword("-1").Appender())
 
 			err := q.Select()
 			Expect(err).ToNot(HaveOccurred())
@@ -185,7 +185,7 @@ var _ = Describe("KeywordSearch", func() {
 			var items []KeywordSearchTestItem
 			q := db.Model(&items)
 
-			pgquery.NewKeywordSearch("name").CaseInsensitive().Keyword("NAME-10").Build(q.Where)
+			q.Where(pgquery.NewKeywordSearch("name").CaseInsensitive().Keyword("NAME-10").Appender())
 
 			err := q.Select()
 			Expect(err).ToNot(HaveOccurred())
@@ -201,7 +201,7 @@ var _ = Describe("KeywordSearch", func() {
 			var items []KeywordSearchTestItem
 			q := db.Model(&items)
 
-			pgquery.NewKeywordSearch("emails,array").Keyword("email-1").Build(q.Where)
+			q.Where(pgquery.NewKeywordSearch("emails,array").Keyword("email-1").Appender())
 
 			err := q.Select()
 			Expect(err).ToNot(HaveOccurred())

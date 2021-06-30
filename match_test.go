@@ -99,7 +99,7 @@ var _ = Describe("Match", func() {
 		It("should generate correct SQL string", func() {
 			q := orm.NewQuery(nil, &MatchTestItem{})
 
-			q = pgquery.NewMatch("name").Matches("match").Build(q.Where)
+			q.Where(pgquery.NewMatch("name").Matches("match").Appender())
 
 			s := queryString(q)
 			Expect(s).To(Equal(`SELECT "match_test_item"."id", "match_test_item"."name" FROM "match_test_items" AS "match_test_item" WHERE ("name" = 'match')`))
@@ -124,7 +124,7 @@ var _ = Describe("Match", func() {
 			var items []MatchTestItem
 			q := db.Model(&items)
 
-			pgquery.NewMatch("name").Matches("name-1").Build(q.Where)
+			q.Where(pgquery.NewMatch("name").Matches("name-1").Appender())
 
 			err := q.Select()
 			Expect(err).ToNot(HaveOccurred())
@@ -139,7 +139,7 @@ var _ = Describe("Match", func() {
 			var items []MatchTestItem
 			q := db.Model(&items)
 
-			pgquery.NewMatch("name").Matches("name-1", "name-2", "name-3").Build(q.Where)
+			q.Where(pgquery.NewMatch("name").Matches("name-1", "name-2", "name-3").Appender())
 
 			err := q.Select()
 			Expect(err).ToNot(HaveOccurred())

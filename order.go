@@ -9,7 +9,6 @@ import (
 	"errors"
 	"strings"
 
-	"github.com/go-pg/pg/v10/orm"
 	"github.com/go-pg/pg/v10/types"
 )
 
@@ -140,7 +139,7 @@ func (s *Order) Desc() *Order {
 	return s
 }
 
-// Build build query.
-func (s *Order) Build(q *orm.Query) *orm.Query {
-	return q.OrderExpr("? ?", types.Ident(s.column), types.Safe(s.Direction.String()))
+// Appender returns parameters for cond appender.
+func (s *Order) Appender() (string, interface{}, interface{}) {
+	return "? ?", types.Ident(s.column), types.Safe(s.Direction.String())
 }

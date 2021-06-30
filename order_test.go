@@ -121,7 +121,7 @@ var _ = Describe("Order", func() {
 		It("should generate correct SQL string", func() {
 			q := orm.NewQuery(nil, &OrderTestItem{})
 
-			q = pgquery.NewOrderAsc("age").Build(q)
+			q.OrderExpr(pgquery.NewOrderAsc("age").Appender())
 
 			s := queryString(q)
 			Expect(s).To(Equal(`SELECT "order_test_item"."id", "order_test_item"."name", "order_test_item"."age" FROM "order_test_items" AS "order_test_item" ORDER BY "age" ASC`))
@@ -147,7 +147,7 @@ var _ = Describe("Order", func() {
 			var items []OrderTestItem
 			q := db.Model(&items)
 
-			pgquery.NewOrderAsc("age").Build(q)
+			q.OrderExpr(pgquery.NewOrderAsc("age").Appender())
 
 			err := q.Select()
 			Expect(err).ToNot(HaveOccurred())
@@ -165,7 +165,7 @@ var _ = Describe("Order", func() {
 			var items []OrderTestItem
 			q := db.Model(&items)
 
-			pgquery.NewOrderDesc("age").Build(q)
+			q.OrderExpr(pgquery.NewOrderDesc("age").Appender())
 
 			err := q.Select()
 			Expect(err).ToNot(HaveOccurred())
@@ -183,8 +183,8 @@ var _ = Describe("Order", func() {
 			var items []OrderTestItem
 			q := db.Model(&items)
 
-			pgquery.NewOrderDesc("name").Build(q)
-			pgquery.NewOrderDesc("age").Build(q)
+			q.OrderExpr(pgquery.NewOrderDesc("name").Appender())
+			q.OrderExpr(pgquery.NewOrderDesc("age").Appender())
 
 			err := q.Select()
 			Expect(err).ToNot(HaveOccurred())

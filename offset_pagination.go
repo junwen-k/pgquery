@@ -4,7 +4,9 @@
 
 package pgquery
 
-import "github.com/go-pg/pg/v10/orm"
+import (
+	"github.com/go-pg/pg/v10/orm"
+)
 
 // OffsetPagination pagination common filter. Offset pagination is skipped when no limit is provided.
 type OffsetPagination struct {
@@ -30,12 +32,14 @@ func (f *OffsetPagination) Offset(page int, limit int) *OffsetPagination {
 	return f
 }
 
-// Build build query.
-func (f *OffsetPagination) Build(q *orm.Query) *orm.Query {
+// Appender returns parameters for cond group appender.
+func (f *OffsetPagination) Appender() applyFn {
 	f.init()
-	if limit := f.Limit; limit != nil {
-		q.Limit(*limit)
-		q.Offset((f.Page - 1) * *limit)
+	return func(q *orm.Query) (*orm.Query, error) {
+		if limit := f.Limit; limit != nil {
+			q.Limit(*limit)
+			q.Offset((f.Page - 1) * *limit)
+		}
+		return q, nil
 	}
-	return q
 }
