@@ -2,14 +2,14 @@
 // This source code is licensed under the MIT license found in the
 // LICENSE file in the root directory of this source tree.
 
-package filter_test
+package pgquery_test
 
 import (
 	"encoding/json"
 	"fmt"
 
 	"github.com/go-pg/pg/v10/orm"
-	"github.com/junwen-k/go-pgquery/pgquery/filter"
+	"github.com/junwen-k/pgquery"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 )
@@ -24,7 +24,7 @@ var _ = Describe("Match", func() {
 	Context("marshalling json", func() {
 		When("using a single value", func() {
 			It("should marshal json successfully", func() {
-				f := filter.NewMatch("match")
+				f := pgquery.NewMatch("").Matches("match")
 
 				b, err := json.Marshal(f)
 				Expect(err).NotTo(HaveOccurred())
@@ -35,7 +35,7 @@ var _ = Describe("Match", func() {
 
 		When("using an array of values", func() {
 			It("should marshal json successfully", func() {
-				f := filter.NewMatch("match_1", "match_2")
+				f := pgquery.NewMatch("").Matches("match_1", "match_2")
 
 				b, err := json.Marshal(f)
 				Expect(err).NotTo(HaveOccurred())
@@ -49,23 +49,23 @@ var _ = Describe("Match", func() {
 		When("using object syntax", func() {
 			When("using a single value", func() {
 				It("should unmarshal json successfully", func() {
-					f := filter.NewMatch()
+					f := pgquery.NewMatch("")
 
 					err := json.Unmarshal([]byte(`{"values":"match"}`), f)
 					Expect(err).ToNot(HaveOccurred())
 
-					Expect(f).To(Equal(filter.NewMatch("match")))
+					Expect(f).To(Equal(pgquery.NewMatch("").Matches("match")))
 				})
 			})
 
 			When("using an array of values", func() {
 				It("should unmarshal json successfully", func() {
-					f := filter.NewMatch()
+					f := pgquery.NewMatch("")
 
 					err := json.Unmarshal([]byte(`{"values":["match_1","match_2"]}`), f)
 					Expect(err).ToNot(HaveOccurred())
 
-					Expect(f).To(Equal(filter.NewMatch("match_1", "match_2")))
+					Expect(f).To(Equal(pgquery.NewMatch("").Matches("match_1", "match_2")))
 				})
 			})
 		})
@@ -73,24 +73,24 @@ var _ = Describe("Match", func() {
 		When("using non-object syntax", func() {
 			When("using an array of values", func() {
 				It("should unmarshal json successfully", func() {
-					f := filter.NewMatch()
+					f := pgquery.NewMatch("")
 
 					err := json.Unmarshal([]byte(`["match_1","match_2"]`), f)
 					Expect(err).ToNot(HaveOccurred())
 
-					Expect(f).To(Equal(filter.NewMatch("match_1", "match_2")))
+					Expect(f).To(Equal(pgquery.NewMatch("").Matches("match_1", "match_2")))
 				})
 			})
 		})
 
 		When("using a single value", func() {
 			It("should unmarshal json successfully", func() {
-				f := filter.NewMatch()
+				f := pgquery.NewMatch("")
 
 				err := json.Unmarshal([]byte(`"match"`), f)
 				Expect(err).ToNot(HaveOccurred())
 
-				Expect(f).To(Equal(filter.NewMatch("match")))
+				Expect(f).To(Equal(pgquery.NewMatch("").Matches("match")))
 			})
 		})
 	})
@@ -99,7 +99,7 @@ var _ = Describe("Match", func() {
 		It("should generate correct SQL string", func() {
 			q := orm.NewQuery(nil, &MatchTestItem{})
 
-			q = filter.NewMatch("match").Column("name").Build(q.Where)
+			q = pgquery.NewMatch("name").Matches("match").Build(q.Where)
 
 			s := queryString(q)
 			Expect(s).To(Equal(`SELECT "match_test_item"."id", "match_test_item"."name" FROM "match_test_items" AS "match_test_item" WHERE ("name" = 'match')`))
@@ -124,7 +124,7 @@ var _ = Describe("Match", func() {
 			var items []MatchTestItem
 			q := db.Model(&items)
 
-			filter.NewMatch("name-1").Column("name").Build(q.Where)
+			pgquery.NewMatch("name").Matches("name-1").Build(q.Where)
 
 			err := q.Select()
 			Expect(err).ToNot(HaveOccurred())
@@ -139,7 +139,7 @@ var _ = Describe("Match", func() {
 			var items []MatchTestItem
 			q := db.Model(&items)
 
-			filter.NewMatch("name-1", "name-2", "name-3").Column("name").Build(q.Where)
+			pgquery.NewMatch("name").Matches("name-1", "name-2", "name-3").Build(q.Where)
 
 			err := q.Select()
 			Expect(err).ToNot(HaveOccurred())

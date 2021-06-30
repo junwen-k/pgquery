@@ -2,16 +2,16 @@
 // This source code is licensed under the MIT license found in the
 // LICENSE file in the root directory of this source tree.
 
-package filter
+package pgquery
 
-import "github.com/go-pg/pg/v10/orm"
-
-// TODO: add typed misconfigured query error
-// TODO: add tests for JSON marshal / unmarshal
+import (
+	"github.com/go-pg/pg/v10/orm"
+)
 
 // Filter common filter interface.
 type Filter interface {
-	Build()
+	Apply(*orm.Query, condFn) *orm.Query
+	ApplyGroup(*orm.Query, condGroupFn) *orm.Query
 }
 
 type condFn = func(condition string, params ...interface{}) *orm.Query

@@ -2,10 +2,11 @@
 // This source code is licensed under the MIT license found in the
 // LICENSE file in the root directory of this source tree.
 
-package filter
+package pgquery
 
 import (
 	"encoding/json"
+	"errors"
 	"strings"
 
 	"github.com/go-pg/pg/v10/orm"
@@ -19,7 +20,7 @@ type KeywordSearch struct {
 	matchAll        bool
 	matchStart      bool
 	matchEnd        bool
-	Value           string `json:"value,omitempty"`
+	Value           *string `json:"value,omitempty"`
 }
 
 // UnmarshalJSON custom JSON unmarshaler.
@@ -27,7 +28,7 @@ func (f *KeywordSearch) UnmarshalJSON(b []byte) error {
 	type alias KeywordSearch
 
 	m1 := alias{}
-	var m2 string
+	var m2 *string
 
 	if err := json.Unmarshal(b, &m1); err == nil {
 		f.Value = m1.Value
@@ -39,7 +40,7 @@ func (f *KeywordSearch) UnmarshalJSON(b []byte) error {
 		return nil
 	}
 
-	return nil // TODO: return unsupported format error
+	return errors.New("[KeywordSearch]: unsupported format when unmarshalling json")
 }
 
 // MarshalJSON custom JSON marshaler.
@@ -48,9 +49,9 @@ func (f *KeywordSearch) MarshalJSON() ([]byte, error) {
 }
 
 // NewKeywordSearch initializes a new keyword search filter.
-func NewKeywordSearch(value string) *KeywordSearch {
+func NewKeywordSearch(column string) *KeywordSearch {
 	return &KeywordSearch{
-		Value: value,
+		column: column,
 	}
 }
 
@@ -84,13 +85,22 @@ func (f *KeywordSearch) MatchEnd() *KeywordSearch {
 	return f
 }
 
+// Keyword set value.
+func (f *KeywordSearch) Keyword(keyword string) *KeywordSearch {
+	f.Value = &keyword
+	return f
+}
+
 func (f *KeywordSearch) buildValue() string {
-	v := f.Value
+	var v string
+	if f.Value != nil {
+		v = *f.Value
+	}
 	if f.matchAll {
 		return v
 	}
 	if !f.matchStart {
-		v = "%" + f.Value
+		v = "%" + v
 	}
 	if !f.matchEnd {
 		v += "%"

@@ -2,13 +2,13 @@
 // This source code is licensed under the MIT license found in the
 // LICENSE file in the root directory of this source tree.
 
-package filter_test
+package pgquery_test
 
 import (
 	"encoding/json"
 
 	"github.com/go-pg/pg/v10/orm"
-	"github.com/junwen-k/go-pgquery/pgquery/filter"
+	"github.com/junwen-k/pgquery"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 )
@@ -23,7 +23,7 @@ var _ = Describe("Range", func() {
 
 	Context("marshalling json", func() {
 		It("should marshal json successfully", func() {
-			f := filter.NewRange().GreaterThan(0)
+			f := pgquery.NewRange("").GreaterThan(0)
 
 			b, err := json.Marshal(f)
 			Expect(err).NotTo(HaveOccurred())
@@ -34,12 +34,12 @@ var _ = Describe("Range", func() {
 
 	Context("unmarshalling json", func() {
 		It("should unmarshal json successfully", func() {
-			f := filter.NewRange()
+			f := pgquery.NewRange("")
 
 			err := json.Unmarshal([]byte(`{"gt":0}`), f)
 			Expect(err).ToNot(HaveOccurred())
 
-			Expect(f).To(Equal(filter.NewRange().GreaterThan(0)))
+			Expect(f).To(Equal(pgquery.NewRange("").GreaterThan(0)))
 		})
 	})
 
@@ -47,7 +47,7 @@ var _ = Describe("Range", func() {
 		It("should generate correct SQL string", func() {
 			q := orm.NewQuery(nil, &RangeTestItem{})
 
-			q = filter.NewRange().GreaterThan(0).Column("age").Build(q.WhereGroup)
+			q = pgquery.NewRange("age").GreaterThan(0).Build(q.WhereGroup)
 
 			s := queryString(q)
 			Expect(s).To(Equal(`SELECT "range_test_item"."id", "range_test_item"."age", "range_test_item"."height" FROM "range_test_items" AS "range_test_item" WHERE (("age" > 0))`))
@@ -73,7 +73,7 @@ var _ = Describe("Range", func() {
 			var items []RangeTestItem
 			q := db.Model(&items)
 
-			filter.NewRange().GreaterThan(5).Column("age").Build(q.WhereGroup)
+			pgquery.NewRange("age").GreaterThan(5).Build(q.WhereGroup)
 
 			err := q.Select()
 			Expect(err).ToNot(HaveOccurred())
@@ -90,7 +90,7 @@ var _ = Describe("Range", func() {
 			var items []RangeTestItem
 			q := db.Model(&items)
 
-			filter.NewRange().GreaterThanEqual(5).Column("age").Build(q.WhereGroup)
+			pgquery.NewRange("age").GreaterThanEqual(5).Build(q.WhereGroup)
 
 			err := q.Select()
 			Expect(err).ToNot(HaveOccurred())
@@ -107,7 +107,7 @@ var _ = Describe("Range", func() {
 			var items []RangeTestItem
 			q := db.Model(&items)
 
-			filter.NewRange().LessThan(5).Column("age").Build(q.WhereGroup)
+			pgquery.NewRange("age").LessThan(5).Build(q.WhereGroup)
 
 			err := q.Select()
 			Expect(err).ToNot(HaveOccurred())
@@ -124,7 +124,7 @@ var _ = Describe("Range", func() {
 			var items []RangeTestItem
 			q := db.Model(&items)
 
-			filter.NewRange().LessThanEqual(5).Column("age").Build(q.WhereGroup)
+			pgquery.NewRange("age").LessThanEqual(5).Build(q.WhereGroup)
 
 			err := q.Select()
 			Expect(err).ToNot(HaveOccurred())
@@ -141,8 +141,8 @@ var _ = Describe("Range", func() {
 			var items []RangeTestItem
 			q := db.Model(&items)
 
-			filter.NewRange().GreaterThan(5).LessThan(8).Column("age").Build(q.WhereGroup)
-			filter.NewRange().GreaterThan(5).LessThan(8).Column("height").Build(q.WhereOrGroup)
+			pgquery.NewRange("age").GreaterThan(5).LessThan(8).Build(q.WhereGroup)
+			pgquery.NewRange("height").GreaterThan(5).LessThan(8).Build(q.WhereOrGroup)
 
 			err := q.Select()
 			Expect(err).ToNot(HaveOccurred())

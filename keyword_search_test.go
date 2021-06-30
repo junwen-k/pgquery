@@ -2,14 +2,14 @@
 // This source code is licensed under the MIT license found in the
 // LICENSE file in the root directory of this source tree.
 
-package filter_test
+package pgquery_test
 
 import (
 	"encoding/json"
 	"fmt"
 
 	"github.com/go-pg/pg/v10/orm"
-	"github.com/junwen-k/go-pgquery/pgquery/filter"
+	"github.com/junwen-k/pgquery"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 )
@@ -24,7 +24,7 @@ var _ = Describe("KeywordSearch", func() {
 
 	Context("marshalling json", func() {
 		It("should marshal json successfully", func() {
-			f := filter.NewKeywordSearch("keyword")
+			f := pgquery.NewKeywordSearch("").Keyword("keyword")
 
 			b, err := json.Marshal(f)
 			Expect(err).NotTo(HaveOccurred())
@@ -36,23 +36,23 @@ var _ = Describe("KeywordSearch", func() {
 	Context("unmarshalling json", func() {
 		When("using object syntax", func() {
 			It("should unmarshal json successfully", func() {
-				f := filter.NewKeywordSearch("")
+				f := pgquery.NewKeywordSearch("")
 
 				err := json.Unmarshal([]byte(`{"value":"keyword"}`), f)
 				Expect(err).ToNot(HaveOccurred())
 
-				Expect(f).To(Equal(filter.NewKeywordSearch("keyword")))
+				Expect(f).To(Equal(pgquery.NewKeywordSearch("").Keyword("keyword")))
 			})
 		})
 
 		When("using non-object syntax", func() {
 			It("should unmarshal json successfully", func() {
-				f := filter.NewKeywordSearch("")
+				f := pgquery.NewKeywordSearch("")
 
 				err := json.Unmarshal([]byte(`"keyword"`), f)
 				Expect(err).ToNot(HaveOccurred())
 
-				Expect(f).To(Equal(filter.NewKeywordSearch("keyword")))
+				Expect(f).To(Equal(pgquery.NewKeywordSearch("").Keyword("keyword")))
 			})
 		})
 	})
@@ -61,7 +61,7 @@ var _ = Describe("KeywordSearch", func() {
 		It("should generate correct SQL string", func() {
 			q := orm.NewQuery(nil, &KeywordSearchTestItem{})
 
-			q = filter.NewKeywordSearch("keyword").Column("name").Build(q.Where)
+			q = pgquery.NewKeywordSearch("name").Keyword("keyword").Build(q.Where)
 
 			s := queryString(q)
 			Expect(s).To(Equal(`SELECT "keyword_search_test_item"."id", "keyword_search_test_item"."name", "keyword_search_test_item"."emails" FROM "keyword_search_test_items" AS "keyword_search_test_item" WHERE ("name" LIKE '%keyword%')`))
@@ -90,7 +90,7 @@ var _ = Describe("KeywordSearch", func() {
 			var items []KeywordSearchTestItem
 			q := db.Model(&items)
 
-			filter.NewKeywordSearch("name-1").Column("name").Build(q.Where)
+			pgquery.NewKeywordSearch("name").Keyword("name-1").Build(q.Where)
 
 			err := q.Select()
 			Expect(err).ToNot(HaveOccurred())
@@ -110,8 +110,8 @@ var _ = Describe("KeywordSearch", func() {
 			var items []KeywordSearchTestItem
 			q := db.Model(&items)
 
-			filter.NewKeywordSearch("(1)@root").Column("name").Build(q.Where)
-			filter.NewKeywordSearch("(1)@root").Column("emails,array").Build(q.WhereOr)
+			pgquery.NewKeywordSearch("name").Keyword("(1)@root").Build(q.Where)
+			pgquery.NewKeywordSearch("emails,array").Keyword("(1)@root").Build(q.WhereOr)
 
 			err := q.Select()
 			Expect(err).ToNot(HaveOccurred())
@@ -133,7 +133,7 @@ var _ = Describe("KeywordSearch", func() {
 			var items []KeywordSearchTestItem
 			q := db.Model(&items)
 
-			filter.NewKeywordSearch("name-1").MatchAll().Column("name").Build(q.Where)
+			pgquery.NewKeywordSearch("name").MatchAll().Keyword("name-1").Build(q.Where)
 
 			err := q.Select()
 			Expect(err).ToNot(HaveOccurred())
@@ -149,7 +149,7 @@ var _ = Describe("KeywordSearch", func() {
 			var items []KeywordSearchTestItem
 			q := db.Model(&items)
 
-			filter.NewKeywordSearch("name-1").MatchStart().Column("name").Build(q.Where)
+			pgquery.NewKeywordSearch("name").MatchStart().Keyword("name-1").Build(q.Where)
 
 			err := q.Select()
 			Expect(err).ToNot(HaveOccurred())
@@ -169,7 +169,7 @@ var _ = Describe("KeywordSearch", func() {
 			var items []KeywordSearchTestItem
 			q := db.Model(&items)
 
-			filter.NewKeywordSearch("-1").MatchEnd().Column("name").Build(q.Where)
+			pgquery.NewKeywordSearch("name").MatchEnd().Keyword("-1").Build(q.Where)
 
 			err := q.Select()
 			Expect(err).ToNot(HaveOccurred())
@@ -185,7 +185,7 @@ var _ = Describe("KeywordSearch", func() {
 			var items []KeywordSearchTestItem
 			q := db.Model(&items)
 
-			filter.NewKeywordSearch("NAME-10").CaseInsensitive().Column("name").Build(q.Where)
+			pgquery.NewKeywordSearch("name").CaseInsensitive().Keyword("NAME-10").Build(q.Where)
 
 			err := q.Select()
 			Expect(err).ToNot(HaveOccurred())
@@ -201,7 +201,7 @@ var _ = Describe("KeywordSearch", func() {
 			var items []KeywordSearchTestItem
 			q := db.Model(&items)
 
-			filter.NewKeywordSearch("email-1").Column("emails,array").Build(q.Where)
+			pgquery.NewKeywordSearch("emails,array").Keyword("email-1").Build(q.Where)
 
 			err := q.Select()
 			Expect(err).ToNot(HaveOccurred())

@@ -2,14 +2,14 @@
 // This source code is licensed under the MIT license found in the
 // LICENSE file in the root directory of this source tree.
 
-package filter_test
+package pgquery_test
 
 import (
 	"encoding/json"
 	"fmt"
 
 	"github.com/go-pg/pg/v10/orm"
-	"github.com/junwen-k/go-pgquery/pgquery/filter"
+	"github.com/junwen-k/pgquery"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 )
@@ -23,7 +23,7 @@ var _ = Describe("OffsetPagination", func() {
 
 	Context("marshalling json", func() {
 		It("should marshal json successfully", func() {
-			f := filter.NewOffsetPagination(1, 10)
+			f := pgquery.NewOffsetPagination().Offset(1, 10)
 
 			b, err := json.Marshal(f)
 			Expect(err).NotTo(HaveOccurred())
@@ -34,12 +34,12 @@ var _ = Describe("OffsetPagination", func() {
 
 	Context("unmarshalling json", func() {
 		It("should unmarshal json successfully", func() {
-			f := filter.NewOffsetPagination(0, 0)
+			f := pgquery.NewOffsetPagination().Offset(0, 0)
 
 			err := json.Unmarshal([]byte(`{"page":1,"limit":10}`), f)
 			Expect(err).ToNot(HaveOccurred())
 
-			Expect(f).To(Equal(filter.NewOffsetPagination(1, 10)))
+			Expect(f).To(Equal(pgquery.NewOffsetPagination().Offset(1, 10)))
 		})
 	})
 
@@ -47,7 +47,7 @@ var _ = Describe("OffsetPagination", func() {
 		It("should generate correct SQL string", func() {
 			q := orm.NewQuery(nil, &OffsetPaginationTestItem{})
 
-			q = filter.NewOffsetPagination(1, 10).Build(q)
+			q = pgquery.NewOffsetPagination().Offset(1, 10).Build(q)
 
 			s := queryString(q)
 			Expect(s).To(Equal(`SELECT "offset_pagination_test_item"."id", "offset_pagination_test_item"."name" FROM "offset_pagination_test_items" AS "offset_pagination_test_item" LIMIT 10`))
@@ -72,7 +72,7 @@ var _ = Describe("OffsetPagination", func() {
 			var items []OffsetPaginationTestItem
 			q := db.Model(&items)
 
-			filter.NewOffsetPagination(1, 5).Build(q)
+			pgquery.NewOffsetPagination().Offset(1, 5).Build(q)
 
 			err := q.Select()
 			Expect(err).ToNot(HaveOccurred())
@@ -89,24 +89,7 @@ var _ = Describe("OffsetPagination", func() {
 			var items []OffsetPaginationTestItem
 			q := db.Model(&items)
 
-			filter.NewOffsetPagination(0, 5).Build(q)
-
-			err := q.Select()
-			Expect(err).ToNot(HaveOccurred())
-
-			if Expect(items).To(HaveLen(5)) {
-				for idx, item := range items {
-					Expect(item.Id).ToNot(BeZero())
-					Expect(item.Name).To(Equal(fmt.Sprintf("name-%d", idx+1)))
-				}
-			}
-		})
-
-		It("works with default limit", func() {
-			var items []OffsetPaginationTestItem
-			q := db.Model(&items)
-
-			filter.NewOffsetPagination(1, 0).DefaultLimit(5).Build(q)
+			pgquery.NewOffsetPagination().Offset(0, 5).Build(q)
 
 			err := q.Select()
 			Expect(err).ToNot(HaveOccurred())
@@ -123,7 +106,7 @@ var _ = Describe("OffsetPagination", func() {
 			var items []OffsetPaginationTestItem
 			q := db.Model(&items)
 
-			filter.NewOffsetPagination(1, 0).Build(q)
+			pgquery.NewOffsetPagination().Offset(1, 0).Build(q)
 
 			err := q.Select()
 			Expect(err).ToNot(HaveOccurred())

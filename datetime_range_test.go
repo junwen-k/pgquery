@@ -2,7 +2,7 @@
 // This source code is licensed under the MIT license found in the
 // LICENSE file in the root directory of this source tree.
 
-package filter_test
+package pgquery_test
 
 import (
 	"encoding/json"
@@ -10,7 +10,7 @@ import (
 	"time"
 
 	"github.com/go-pg/pg/v10/orm"
-	"github.com/junwen-k/go-pgquery/pgquery/filter"
+	"github.com/junwen-k/pgquery"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 )
@@ -29,7 +29,7 @@ var _ = Describe("DatetimeRange", func() {
 
 		When("layout is not set", func() {
 			It("should marshal json with default format", func() {
-				f := filter.NewDateTimeRange().After(t)
+				f := pgquery.NewDateTimeRange("created_at", time.RFC3339).After(t)
 
 				b, err := json.Marshal(f)
 				Expect(err).ToNot(HaveOccurred())
@@ -40,7 +40,7 @@ var _ = Describe("DatetimeRange", func() {
 
 		When("layout is set", func() {
 			It("should marshal json with specified format", func() {
-				f := filter.NewDateTimeRange().Layout(time.Kitchen).After(t)
+				f := pgquery.NewDateTimeRange("created_at").AfterMarshalLayout(time.Kitchen).After(t)
 
 				b, err := json.Marshal(f)
 				Expect(err).ToNot(HaveOccurred())
@@ -56,23 +56,23 @@ var _ = Describe("DatetimeRange", func() {
 
 		When("layout is not set", func() {
 			It("should unmarshal json with default format", func() {
-				f := filter.NewDateTimeRange()
+				f := pgquery.NewDateTimeRange("created_at", time.RFC3339)
 
 				err = json.Unmarshal([]byte(`{"after":"2021-01-15T00:00:00Z"}`), f)
 				Expect(err).ToNot(HaveOccurred())
 
-				Expect(f).To(Equal(filter.NewDateTimeRange().After(t).Layout(time.RFC3339)))
+				Expect(f).To(Equal(pgquery.NewDateTimeRange("created_at", time.RFC3339).After(t)))
 			})
 		})
 
 		When("layout is set", func() {
 			It("should unmarshal json with specified format", func() {
-				f := filter.NewDateTimeRange().Layout("2006-01-02")
+				f := pgquery.NewDateTimeRange("created_at", "2006-01-02")
 
 				err = json.Unmarshal([]byte(`{"after":"2021-01-15"}`), f)
 				Expect(err).ToNot(HaveOccurred())
 
-				Expect(f).To(Equal(filter.NewDateTimeRange().After(t).Layout("2006-01-02")))
+				Expect(f).To(Equal(pgquery.NewDateTimeRange("created_at", "2006-01-02").AfterMarshalLayout("2006-01-02").After(t)))
 			})
 		})
 
@@ -85,7 +85,7 @@ var _ = Describe("DatetimeRange", func() {
 		It("should generate correct SQL string", func() {
 			q := orm.NewQuery(nil, &DatetimeRangeTestItem{})
 
-			q = filter.NewDateTimeRange().Column("created_at").After(t).Build(q.WhereGroup)
+			q = pgquery.NewDateTimeRange("created_at", time.RFC3339).After(t).Build(q.WhereGroup)
 
 			s := queryString(q)
 			Expect(s).To(Equal(`SELECT "datetime_range_test_item"."id", "datetime_range_test_item"."name", "datetime_range_test_item"."created_at" FROM "datetime_range_test_items" AS "datetime_range_test_item" WHERE (("created_at" > '2021-01-15T00:00:00Z'))`))
@@ -111,7 +111,7 @@ var _ = Describe("DatetimeRange", func() {
 			var items []DatetimeRangeTestItem
 			q := db.Model(&items)
 
-			filter.NewDateTimeRange().After(testTime.Add(5 * time.Hour)).Column("created_at").Build(q.WhereGroup)
+			pgquery.NewDateTimeRange("created_at", time.RFC3339).After(testTime.Add(5 * time.Hour)).Build(q.WhereGroup)
 
 			err := q.Select()
 			Expect(err).ToNot(HaveOccurred())
@@ -132,7 +132,7 @@ var _ = Describe("DatetimeRange", func() {
 			var items []DatetimeRangeTestItem
 			q := db.Model(&items)
 
-			filter.NewDateTimeRange().Before(testTime.Add(6 * time.Hour)).Column("created_at").Build(q.WhereGroup)
+			pgquery.NewDateTimeRange("created_at", time.RFC3339).Before(testTime.Add(6 * time.Hour)).Build(q.WhereGroup)
 
 			err := q.Select()
 			Expect(err).ToNot(HaveOccurred())
@@ -153,7 +153,7 @@ var _ = Describe("DatetimeRange", func() {
 			var items []DatetimeRangeTestItem
 			q := db.Model(&items)
 
-			filter.NewDateTimeRange().From(testTime.Add(5 * time.Hour)).Column("created_at").Build(q.WhereGroup)
+			pgquery.NewDateTimeRange("created_at", time.RFC3339).From(testTime.Add(5 * time.Hour)).Build(q.WhereGroup)
 
 			err := q.Select()
 			Expect(err).ToNot(HaveOccurred())
@@ -174,7 +174,7 @@ var _ = Describe("DatetimeRange", func() {
 			var items []DatetimeRangeTestItem
 			q := db.Model(&items)
 
-			filter.NewDateTimeRange().To(testTime.Add(5 * time.Hour)).Column("created_at").Build(q.WhereGroup)
+			pgquery.NewDateTimeRange("created_at", time.RFC3339).To(testTime.Add(5 * time.Hour)).Build(q.WhereGroup)
 
 			err := q.Select()
 			Expect(err).ToNot(HaveOccurred())
@@ -195,7 +195,7 @@ var _ = Describe("DatetimeRange", func() {
 			var items []DatetimeRangeTestItem
 			q := db.Model(&items)
 
-			filter.NewDateTimeRange().From(testTime.Add(2 * time.Hour)).To(testTime.Add(6 * time.Hour)).Column("created_at").Build(q.WhereGroup)
+			pgquery.NewDateTimeRange("created_at", time.RFC3339).From(testTime.Add(2 * time.Hour)).To(testTime.Add(6 * time.Hour)).Build(q.WhereGroup)
 
 			err := q.Select()
 			Expect(err).ToNot(HaveOccurred())

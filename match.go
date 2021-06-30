@@ -2,10 +2,11 @@
 // This source code is licensed under the MIT license found in the
 // LICENSE file in the root directory of this source tree.
 
-package filter
+package pgquery
 
 import (
 	"encoding/json"
+	"errors"
 
 	"github.com/go-pg/pg/v10/orm"
 	"github.com/go-pg/pg/v10/types"
@@ -49,7 +50,7 @@ func (f *Match) UnmarshalJSON(b []byte) error {
 		return nil
 	}
 
-	return nil // TODO: return unsupported format error
+	return errors.New("[Match]: unsupported format when unmarshalling json")
 }
 
 // MarshalJSON custom JSON marshaler.
@@ -65,13 +66,21 @@ func (f *Match) MarshalJSON() ([]byte, error) {
 }
 
 // NewMatch initializes a new match filter.
-func NewMatch(values ...interface{}) *Match {
-	return &Match{Values: values}
+func NewMatch(column string) *Match {
+	return &Match{
+		column: column,
+	}
 }
 
 // Column sets the column for the match filter.
 func (f *Match) Column(column string) *Match {
 	f.column = column
+	return f
+}
+
+// Matches set value(s).
+func (f *Match) Matches(values ...interface{}) *Match {
+	f.Values = append(f.Values, values...)
 	return f
 }
 

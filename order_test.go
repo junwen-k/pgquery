@@ -2,7 +2,7 @@
 // This source code is licensed under the MIT license found in the
 // LICENSE file in the root directory of this source tree.
 
-package sorter_test
+package pgquery_test
 
 import (
 	"encoding/json"
@@ -10,7 +10,7 @@ import (
 	"math"
 
 	"github.com/go-pg/pg/v10/orm"
-	"github.com/junwen-k/go-pgquery/pgquery/sorter"
+	"github.com/junwen-k/pgquery"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 )
@@ -25,7 +25,7 @@ var _ = Describe("Order", func() {
 
 	Context("marshalling json", func() {
 		It("should marshal json successfully", func() {
-			s := sorter.NewOrderAsc()
+			s := pgquery.NewOrderAsc("")
 
 			b, err := json.Marshal(s)
 			Expect(err).NotTo(HaveOccurred())
@@ -36,36 +36,47 @@ var _ = Describe("Order", func() {
 
 	Context("unmarshalling json", func() {
 		When("using object syntax", func() {
+			When("using integer", func() {
+				It("should unmarshal json successfully", func() {
+					s := pgquery.NewOrderAsc("")
+
+					err := json.Unmarshal([]byte(`{"direction":1}`), s)
+					Expect(err).ToNot(HaveOccurred())
+
+					Expect(s).To(Equal(pgquery.NewOrderDesc("")))
+				})
+			})
+
 			When("using uppercase", func() {
 				It("should unmarshal json successfully", func() {
-					s := sorter.NewOrderAsc()
+					s := pgquery.NewOrderAsc("")
 
 					err := json.Unmarshal([]byte(`{"direction":"DESC"}`), s)
 					Expect(err).ToNot(HaveOccurred())
 
-					Expect(s).To(Equal(sorter.NewOrderDesc()))
+					Expect(s).To(Equal(pgquery.NewOrderDesc("")))
 				})
 			})
 
 			When("using mixed case", func() {
 				It("should unmarshal json successfully", func() {
-					s := sorter.NewOrderAsc()
+					s := pgquery.NewOrderAsc("")
 
 					err := json.Unmarshal([]byte(`{"direction":"DeSc"}`), s)
 					Expect(err).ToNot(HaveOccurred())
 
-					Expect(s).To(Equal(sorter.NewOrderDesc()))
+					Expect(s).To(Equal(pgquery.NewOrderDesc("")))
 				})
 			})
 
 			When("using lowercase", func() {
 				It("should unmarshal json successfully", func() {
-					s := sorter.NewOrderAsc()
+					s := pgquery.NewOrderAsc("")
 
 					err := json.Unmarshal([]byte(`{"direction":"desc"}`), s)
 					Expect(err).ToNot(HaveOccurred())
 
-					Expect(s).To(Equal(sorter.NewOrderDesc()))
+					Expect(s).To(Equal(pgquery.NewOrderDesc("")))
 				})
 			})
 		})
@@ -73,34 +84,34 @@ var _ = Describe("Order", func() {
 		When("using non-object syntax", func() {
 			When("using uppercase", func() {
 				It("should unmarshal json successfully", func() {
-					s := sorter.NewOrderAsc()
+					s := pgquery.NewOrderAsc("")
 
 					err := json.Unmarshal([]byte(`"DESC"`), s)
 					Expect(err).ToNot(HaveOccurred())
 
-					Expect(s).To(Equal(sorter.NewOrderDesc()))
+					Expect(s).To(Equal(pgquery.NewOrderDesc("")))
 				})
 			})
 
 			When("using mixed case", func() {
 				It("should unmarshal json successfully", func() {
-					s := sorter.NewOrderAsc()
+					s := pgquery.NewOrderAsc("")
 
 					err := json.Unmarshal([]byte(`"DeSc"`), s)
 					Expect(err).ToNot(HaveOccurred())
 
-					Expect(s).To(Equal(sorter.NewOrderDesc()))
+					Expect(s).To(Equal(pgquery.NewOrderDesc("")))
 				})
 			})
 
 			When("using lowercase", func() {
 				It("should unmarshal json successfully", func() {
-					s := sorter.NewOrderAsc()
+					s := pgquery.NewOrderAsc("")
 
 					err := json.Unmarshal([]byte(`"desc"`), s)
 					Expect(err).ToNot(HaveOccurred())
 
-					Expect(s).To(Equal(sorter.NewOrderDesc()))
+					Expect(s).To(Equal(pgquery.NewOrderDesc("")))
 				})
 			})
 		})
@@ -110,7 +121,7 @@ var _ = Describe("Order", func() {
 		It("should generate correct SQL string", func() {
 			q := orm.NewQuery(nil, &OrderTestItem{})
 
-			q = sorter.NewOrderAsc().Column("age").Build(q)
+			q = pgquery.NewOrderAsc("age").Build(q)
 
 			s := queryString(q)
 			Expect(s).To(Equal(`SELECT "order_test_item"."id", "order_test_item"."name", "order_test_item"."age" FROM "order_test_items" AS "order_test_item" ORDER BY "age" ASC`))
@@ -136,7 +147,7 @@ var _ = Describe("Order", func() {
 			var items []OrderTestItem
 			q := db.Model(&items)
 
-			sorter.NewOrderAsc().Column("age").Build(q)
+			pgquery.NewOrderAsc("age").Build(q)
 
 			err := q.Select()
 			Expect(err).ToNot(HaveOccurred())
@@ -154,7 +165,7 @@ var _ = Describe("Order", func() {
 			var items []OrderTestItem
 			q := db.Model(&items)
 
-			sorter.NewOrderDesc().Column("age").Build(q)
+			pgquery.NewOrderDesc("age").Build(q)
 
 			err := q.Select()
 			Expect(err).ToNot(HaveOccurred())
@@ -172,8 +183,8 @@ var _ = Describe("Order", func() {
 			var items []OrderTestItem
 			q := db.Model(&items)
 
-			sorter.NewOrderDesc().Column("name").Build(q)
-			sorter.NewOrderDesc().Column("age").Build(q)
+			pgquery.NewOrderDesc("name").Build(q)
+			pgquery.NewOrderDesc("age").Build(q)
 
 			err := q.Select()
 			Expect(err).ToNot(HaveOccurred())

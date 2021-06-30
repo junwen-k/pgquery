@@ -2,7 +2,7 @@
 // This source code is licensed under the MIT license found in the
 // LICENSE file in the root directory of this source tree.
 
-package filter_test
+package pgquery_test
 
 import (
 	"encoding/json"
@@ -10,7 +10,7 @@ import (
 	"time"
 
 	"github.com/go-pg/pg/v10/orm"
-	"github.com/junwen-k/go-pgquery/pgquery/filter"
+	"github.com/junwen-k/pgquery"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 )
@@ -29,8 +29,7 @@ var _ = Describe("RelativeDatetimeRange", func() {
 
 		When("layout is not set", func() {
 			It("should marshal json with default format", func() {
-				f := filter.NewRelativeDateTimeRange(time.Time{})
-				f.At = &t
+				f := pgquery.NewRelativeDateTimeRange("").AsAt(t)
 
 				b, err := json.Marshal(f)
 				Expect(err).NotTo(HaveOccurred())
@@ -41,8 +40,7 @@ var _ = Describe("RelativeDatetimeRange", func() {
 
 		When("layout is set", func() {
 			It("should marshal json with specified format", func() {
-				f := filter.NewRelativeDateTimeRange(time.Time{}).Layout(time.Kitchen)
-				f.At = &t
+				f := pgquery.NewRelativeDateTimeRange("").MarshalLayout(time.Kitchen).AsAt(t)
 
 				b, err := json.Marshal(f)
 				Expect(err).NotTo(HaveOccurred())
@@ -58,29 +56,23 @@ var _ = Describe("RelativeDatetimeRange", func() {
 
 		When("layout is not set", func() {
 			It("should unmarshal json with default format", func() {
-				f := filter.NewRelativeDateTimeRange(time.Time{})
-				f.At = &t
+				f := pgquery.NewRelativeDateTimeRange("").AsAt(t)
 
 				err = json.Unmarshal([]byte(`{"at":"2021-01-15T00:00:00Z","ago":{},"upcoming":{}}`), f)
 				Expect(err).ToNot(HaveOccurred())
 
-				equal := filter.NewRelativeDateTimeRange(time.Time{}).Layout(time.RFC3339)
-				equal.At = &t
-				Expect(f).To(Equal(equal))
+				Expect(f).To(Equal(pgquery.NewRelativeDateTimeRange("").AsAt(t)))
 			})
 		})
 
 		When("layout is set", func() {
 			It("should unmarshal json successfully", func() {
-				f := filter.NewRelativeDateTimeRange(time.Time{}).Layout("2006-01-02")
-				f.At = &t
+				f := pgquery.NewRelativeDateTimeRange("", "2006-01-02").AsAt(t)
 
 				err := json.Unmarshal([]byte(`{"at":"2021-01-15"}`), f)
 				Expect(err).ToNot(HaveOccurred())
 
-				equal := filter.NewRelativeDateTimeRange(time.Time{}).Layout("2006-01-02")
-				equal.At = &t
-				Expect(f).To(Equal(equal))
+				Expect(f).To(Equal(pgquery.NewRelativeDateTimeRange("", "2006-01-02").AsAt(t)))
 			})
 		})
 	})
@@ -92,8 +84,7 @@ var _ = Describe("RelativeDatetimeRange", func() {
 		It("should generate correct SQL string", func() {
 			q := orm.NewQuery(nil, &RelativeDatetimeRangeTestItem{})
 
-			f := filter.NewRelativeDateTimeRange(time.Time{}).Column("created_at").AgoHour(5)
-			f.At = &t
+			f := pgquery.NewRelativeDateTimeRange("created_at").AsAt(t).AgoHour(5)
 			q = f.Build(q.WhereGroup)
 
 			s := queryString(q)
@@ -124,7 +115,7 @@ var _ = Describe("RelativeDatetimeRange", func() {
 			var items []RelativeDatetimeRangeTestItem
 			q := db.Model(&items)
 
-			filter.NewRelativeDateTimeRange(testTime).Column("created_at").AgoHour(5).Build(q.WhereGroup)
+			pgquery.NewRelativeDateTimeRange("created_at").AsAt(testTime).AgoHour(5).Build(q.WhereGroup)
 
 			err := q.Select()
 			Expect(err).ToNot(HaveOccurred())
@@ -157,7 +148,7 @@ var _ = Describe("RelativeDatetimeRange", func() {
 			var items []RelativeDatetimeRangeTestItem
 			q := db.Model(&items)
 
-			filter.NewRelativeDateTimeRange(testTime).Column("created_at").UpcomingHour(5).Build(q.WhereGroup)
+			pgquery.NewRelativeDateTimeRange("created_at").AsAt(testTime).UpcomingHour(5).Build(q.WhereGroup)
 
 			err := q.Select()
 			Expect(err).ToNot(HaveOccurred())
@@ -185,7 +176,7 @@ var _ = Describe("RelativeDatetimeRange", func() {
 			var items []RelativeDatetimeRangeTestItem
 			q := db.Model(&items)
 
-			filter.NewRelativeDateTimeRange(testTime).Column("created_at").AgoHour(5).UpcomingHour(5).Build(q.WhereGroup)
+			pgquery.NewRelativeDateTimeRange("created_at").AsAt(testTime).AgoHour(5).UpcomingHour(5).Build(q.WhereGroup)
 
 			err := q.Select()
 			Expect(err).ToNot(HaveOccurred())

@@ -2,10 +2,11 @@
 // This source code is licensed under the MIT license found in the
 // LICENSE file in the root directory of this source tree.
 
-package sorter
+package pgquery
 
 import (
 	"encoding/json"
+	"errors"
 	"strings"
 
 	"github.com/go-pg/pg/v10/orm"
@@ -31,7 +32,7 @@ func (d OrderDirection) String() string {
 // Order order common sorter.
 type Order struct {
 	column    string
-	Direction OrderDirection `json:"direction,omitempty"`
+	Direction *OrderDirection `json:"direction,omitempty"`
 }
 
 // MarshalJSON custom JSON marshaler.
@@ -48,14 +49,19 @@ func (s *Order) UnmarshalJSON(b []byte) error {
 		*alias
 	}{alias: (*alias)(s)}
 	var m2 string
+	m3 := struct {
+		Direction int `json:"direction,omitempty"`
+		*alias
+	}{alias: (*alias)(s)}
+	var m4 int
 
 	if err := json.Unmarshal(b, &m1); err == nil {
 		d := strings.ToLower(m1.Direction)
 		if d == strings.ToLower(OrderDirectionAsc.String()) {
-			s.Direction = OrderDirectionAsc
+			*s.Direction = OrderDirectionAsc
 		}
 		if d == strings.ToLower(OrderDirectionDesc.String()) {
-			s.Direction = OrderDirectionDesc
+			*s.Direction = OrderDirectionDesc
 		}
 		return nil
 	}
@@ -63,33 +69,56 @@ func (s *Order) UnmarshalJSON(b []byte) error {
 	if err := json.Unmarshal(b, &m2); err == nil {
 		d := strings.ToLower(m2)
 		if d == strings.ToLower(OrderDirectionAsc.String()) {
-			s.Direction = OrderDirectionAsc
+			*s.Direction = OrderDirectionAsc
 		}
 		if d == strings.ToLower(OrderDirectionDesc.String()) {
-			s.Direction = OrderDirectionDesc
+			*s.Direction = OrderDirectionDesc
 		}
 		return nil
 	}
 
-	return nil // TODO: return unsupported format error
+	if err := json.Unmarshal(b, &m3); err == nil {
+		d := OrderDirection(m3.Direction)
+		if d == OrderDirectionAsc {
+			*s.Direction = OrderDirectionAsc
+		}
+		if d == OrderDirectionDesc {
+			*s.Direction = OrderDirectionDesc
+		}
+		return nil
+	}
+
+	if err := json.Unmarshal(b, &m4); err == nil {
+		d := OrderDirection(m4)
+		if d == OrderDirectionAsc {
+			*s.Direction = OrderDirectionAsc
+		}
+		if d == OrderDirectionDesc {
+			*s.Direction = OrderDirectionDesc
+		}
+		return nil
+	}
+
+	return errors.New("[Order]: unsupported format when unmarshalling json")
 }
 
 // NewOrder initializes a new order sorter.
-func NewOrder(direction OrderDirection) *Order {
+func NewOrder(column string) *Order {
 	return &Order{
-		Direction: direction,
+		column:    column,
+		Direction: new(OrderDirection),
 	}
 }
 
 // NewOrderAsc initializes a new ascending order sorter.
-func NewOrderAsc() *Order {
-	o := &Order{}
+func NewOrderAsc(column string) *Order {
+	o := NewOrder(column)
 	return o.Asc()
 }
 
 // NewOrderDesc initializes a new order sorter.
-func NewOrderDesc() *Order {
-	o := &Order{}
+func NewOrderDesc(column string) *Order {
+	o := NewOrder(column)
 	return o.Desc()
 }
 
@@ -101,13 +130,13 @@ func (s *Order) Column(column string) *Order {
 
 // Asc sets the direction to ascending order.
 func (s *Order) Asc() *Order {
-	s.Direction = OrderDirectionAsc
+	*s.Direction = OrderDirectionAsc
 	return s
 }
 
 // Desc sets the direction to descending order.
 func (s *Order) Desc() *Order {
-	s.Direction = OrderDirectionDesc
+	*s.Direction = OrderDirectionDesc
 	return s
 }
 

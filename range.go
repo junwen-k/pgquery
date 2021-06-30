@@ -2,7 +2,7 @@
 // This source code is licensed under the MIT license found in the
 // LICENSE file in the root directory of this source tree.
 
-package filter
+package pgquery
 
 import (
 	"github.com/go-pg/pg/v10/orm"
@@ -19,8 +19,10 @@ type Range struct {
 }
 
 // NewRange initializes a new range filter.
-func NewRange() *Range {
-	return &Range{}
+func NewRange(column string) *Range {
+	return &Range{
+		column: column,
+	}
 }
 
 // Column set the column for the range filter.

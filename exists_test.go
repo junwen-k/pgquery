@@ -2,14 +2,14 @@
 // This source code is licensed under the MIT license found in the
 // LICENSE file in the root directory of this source tree.
 
-package filter_test
+package pgquery_test
 
 import (
 	"encoding/json"
 	"fmt"
 
 	"github.com/go-pg/pg/v10/orm"
-	"github.com/junwen-k/go-pgquery/pgquery/filter"
+	"github.com/junwen-k/pgquery"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 )
@@ -22,36 +22,49 @@ var _ = Describe("Exists", func() {
 	}
 
 	Context("marshalling json", func() {
-		It("should marshal json successfully", func() {
-			f := filter.NewExists(false)
+		When("value is nil", func() {
+			It("should marshal json successfully", func() {
+				f := pgquery.NewExists("name")
 
-			b, err := json.Marshal(f)
-			Expect(err).NotTo(HaveOccurred())
+				b, err := json.Marshal(f)
+				Expect(err).NotTo(HaveOccurred())
 
-			Expect(b).To(MatchJSON(`false`))
+				Expect(b).To(MatchJSON(`null`))
+			})
+		})
+
+		When("value is false", func() {
+			It("should marshal json successfully", func() {
+				f := pgquery.NewExists("name").ShouldNotExists()
+
+				b, err := json.Marshal(f)
+				Expect(err).NotTo(HaveOccurred())
+
+				Expect(b).To(MatchJSON(`false`))
+			})
 		})
 	})
 
 	Context("unmarshalling json", func() {
 		When("using object syntax", func() {
 			It("should unmarshal json successfully", func() {
-				f := filter.NewExists(false)
+				f := pgquery.NewExists("name")
 
 				err := json.Unmarshal([]byte(`{"value":true}`), f)
 				Expect(err).ToNot(HaveOccurred())
 
-				Expect(f).To(Equal(filter.NewExists(true)))
+				Expect(f).To(Equal(pgquery.NewExists("name").ShouldExists()))
 			})
 		})
 
 		When("using non-object syntax", func() {
 			It("should unmarshal json successfully", func() {
-				f := filter.NewExists(false)
+				f := pgquery.NewExists("name")
 
 				err := json.Unmarshal([]byte(`true`), f)
 				Expect(err).ToNot(HaveOccurred())
 
-				Expect(f).To(Equal(filter.NewExists(true)))
+				Expect(f).To(Equal(pgquery.NewExists("name").ShouldExists()))
 			})
 		})
 	})
@@ -60,7 +73,7 @@ var _ = Describe("Exists", func() {
 		It("should generate correct SQL string", func() {
 			q := orm.NewQuery(nil, &ExistsTestItem{})
 
-			q = filter.NewExists(true).Column("name").Build(q.Where)
+			q = pgquery.NewExists("name").ShouldExists().Build(q.Where)
 
 			s := queryString(q)
 			Expect(s).To(Equal(`SELECT "exists_test_item"."id", "exists_test_item"."name" FROM "exists_test_items" AS "exists_test_item" WHERE ("name" IS NOT NULL)`))
@@ -89,7 +102,7 @@ var _ = Describe("Exists", func() {
 			var items []ExistsTestItem
 			q := db.Model(&items)
 
-			filter.NewExists(true).Column("name").Build(q.Where)
+			pgquery.NewExists("name").ShouldExists().Build(q.Where)
 
 			err := q.Select()
 			Expect(err).ToNot(HaveOccurred())
@@ -106,7 +119,7 @@ var _ = Describe("Exists", func() {
 			var items []ExistsTestItem
 			q := db.Model(&items)
 
-			filter.NewExists(false).Column("name").Build(q.Where)
+			pgquery.NewExists("name").ShouldNotExists().Build(q.Where)
 
 			err := q.Select()
 			Expect(err).ToNot(HaveOccurred())

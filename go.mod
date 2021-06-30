@@ -1,4 +1,4 @@
-module github.com/junwen-k/go-pgquery
+module github.com/junwen-k/pgquery
 
 go 1.13
 
