@@ -2,9 +2,11 @@
 // This source code is licensed under the MIT license found in the
 // LICENSE file in the root directory of this source tree.
 
-package filter
+package pgquery
 
 import (
+	"encoding/json"
+	"errors"
 	"strings"
 
 	"github.com/go-pg/pg/v10/orm"
@@ -18,13 +20,38 @@ type KeywordSearch struct {
 	matchAll        bool
 	matchStart      bool
 	matchEnd        bool
-	Value           string `json:"value,omitempty"`
+	Value           *string `json:"value,omitempty"`
+}
+
+// UnmarshalJSON custom JSON unmarshaler.
+func (f *KeywordSearch) UnmarshalJSON(b []byte) error {
+	type alias KeywordSearch
+
+	m1 := alias{}
+	var m2 *string
+
+	if err := json.Unmarshal(b, &m1); err == nil {
+		f.Value = m1.Value
+		return nil
+	}
+
+	if err := json.Unmarshal(b, &m2); err == nil {
+		f.Value = m2
+		return nil
+	}
+
+	return errors.New("[KeywordSearch]: unsupported format when unmarshalling json")
+}
+
+// MarshalJSON custom JSON marshaler.
+func (f *KeywordSearch) MarshalJSON() ([]byte, error) {
+	return json.Marshal(f.Value)
 }
 
 // NewKeywordSearch initializes a new keyword search filter.
-func NewKeywordSearch(value string) *KeywordSearch {
+func NewKeywordSearch(column string) *KeywordSearch {
 	return &KeywordSearch{
-		Value: value,
+		column: column,
 	}
 }
 
@@ -58,13 +85,22 @@ func (f *KeywordSearch) MatchEnd() *KeywordSearch {
 	return f
 }
 
+// Keyword set value.
+func (f *KeywordSearch) Keyword(keyword string) *KeywordSearch {
+	f.Value = &keyword
+	return f
+}
+
 func (f *KeywordSearch) buildValue() string {
-	v := f.Value
+	var v string
+	if f.Value != nil {
+		v = *f.Value
+	}
 	if f.matchAll {
 		return v
 	}
 	if !f.matchStart {
-		v = "%" + f.Value
+		v = "%" + v
 	}
 	if !f.matchEnd {
 		v += "%"
@@ -86,10 +122,10 @@ func (f *KeywordSearch) buildColumn(column string) interface{} {
 	return types.Ident(column)
 }
 
-// Build build query.
-func (f *KeywordSearch) Build(condFn condFn) *orm.Query {
+// Appender returns parameters for cond appender.
+func (f *KeywordSearch) Appender() (string, interface{}, interface{}, interface{}) {
 	v := f.buildValue()
 	column := f.buildColumn(f.column)
 	like := f.buildLike()
-	return condFn("? ? ?", column, types.Safe(like), v)
+	return "? ? ?", column, types.Safe(like), v
 }

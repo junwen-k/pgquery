@@ -2,9 +2,11 @@
 // This source code is licensed under the MIT license found in the
 // LICENSE file in the root directory of this source tree.
 
-package filter
+package pgquery
 
 import (
+	"encoding/json"
+	"errors"
 	"fmt"
 	"strings"
 	"time"
@@ -107,21 +109,71 @@ func (o *RelativeDateTimeRangeUnitOption) build() string {
 
 // RelativeDateTimeRange relative datetime range common filter.
 type RelativeDateTimeRange struct {
-	column   string
-	layout   string
-	Ago      *RelativeDateTimeRangeUnitOption `json:"ago,omitempty"`
-	Upcoming *RelativeDateTimeRangeUnitOption `json:"upcoming,omitempty"`
-	At       *time.Time                       `json:"at,omitempty"`
+	column        string
+	layouts       []string
+	marshalLayout string
+	Ago           *RelativeDateTimeRangeUnitOption `json:"ago,omitempty"`
+	Upcoming      *RelativeDateTimeRangeUnitOption `json:"upcoming,omitempty"`
+	At            *time.Time                       `json:"at,omitempty"`
+}
+
+// MarshalJSON custom JSON marshaler.
+func (f *RelativeDateTimeRange) MarshalJSON() ([]byte, error) {
+	type alias RelativeDateTimeRange
+
+	m1 := struct {
+		At string `json:"at,omitempty"`
+		*alias
+	}{alias: (*alias)(f)}
+
+	if f.At != nil {
+		if f.marshalLayout == "" {
+			return nil, errors.New("[RelativeDateTimeRange]: marshalLayout is not specified for marshal json")
+		}
+		m1.At = f.At.Format(f.marshalLayout)
+	}
+
+	return json.Marshal(m1)
+}
+
+// UnmarshalJSON custom JSON unmarshaler.
+func (f *RelativeDateTimeRange) UnmarshalJSON(b []byte) error {
+	type alias RelativeDateTimeRange
+
+	m1 := struct {
+		At string `json:"at,omitempty"`
+		*alias
+	}{alias: (*alias)(f)}
+
+	if len(f.layouts) <= 0 {
+		return errors.New("[RelativeDateTimeRange]: layouts are not specified for unmarshal json")
+	}
+
+	err := json.Unmarshal(b, &m1)
+	if err != nil {
+		return errors.New("[RelativeDateTimeRange]: unsupported format when unmarshalling json")
+	}
+
+	for _, layout := range f.layouts {
+		if f.At == nil && m1.At != "" {
+			at, err := time.Parse(layout, m1.At)
+			if err != nil {
+				continue
+			}
+			f.marshalLayout = layout
+			f.At = &at
+		}
+	}
+
+	return nil
 }
 
 // NewRelativeDateTimeRange initializes a new relative datetime filter.
-func NewRelativeDateTimeRange(at time.Time) *RelativeDateTimeRange {
-	if at.IsZero() {
-		at = time.Now()
-	}
+func NewRelativeDateTimeRange(column string, layouts ...string) *RelativeDateTimeRange {
 	f := &RelativeDateTimeRange{
-		layout: time.RFC3339,
-		At:     &at,
+		column:        column,
+		layouts:       append(layouts, time.RFC3339),
+		marshalLayout: time.RFC3339,
 	}
 	f.init()
 	return f
@@ -146,9 +198,15 @@ func (f *RelativeDateTimeRange) Column(column string) *RelativeDateTimeRange {
 	return f
 }
 
-// Layout sets the parsing layout for the relative datetime filter.
-func (f *RelativeDateTimeRange) Layout(layout string) *RelativeDateTimeRange {
-	f.layout = layout
+// Layout sets the parsing layout(s) for the relative datetime filter.
+func (f *RelativeDateTimeRange) Layout(layouts ...string) *RelativeDateTimeRange {
+	f.layouts = append(f.layouts, layouts...)
+	return f
+}
+
+// MarshalLayout set marshal layout.
+func (f *RelativeDateTimeRange) MarshalLayout(layout string) *RelativeDateTimeRange {
+	f.marshalLayout = layout
 	return f
 }
 
@@ -320,10 +378,16 @@ func (f *RelativeDateTimeRange) UpcomingYear(value int) *RelativeDateTimeRange {
 	return f
 }
 
-// Build build query.
-func (f *RelativeDateTimeRange) Build(condGroupFn condGroupFn) *orm.Query {
+// AsAt set value.
+func (f *RelativeDateTimeRange) AsAt(at time.Time) *RelativeDateTimeRange {
+	f.At = &at
+	return f
+}
+
+// Appender returns parameters for cond group appender.
+func (f *RelativeDateTimeRange) Appender() applyFn {
 	f.init()
-	return condGroupFn(func(q *orm.Query) (*orm.Query, error) {
+	return func(q *orm.Query) (*orm.Query, error) {
 		if ago := f.Ago.build(); ago != "" {
 			q.Where("? >= ?::timestamp - interval ?", types.Ident(f.column), f.At.Format(time.RFC3339Nano), ago)
 		} else {
@@ -335,5 +399,5 @@ func (f *RelativeDateTimeRange) Build(condGroupFn condGroupFn) *orm.Query {
 			q.Where("? <= ?::timestamp", types.Ident(f.column), f.At.Format(time.RFC3339Nano))
 		}
 		return q, nil
-	})
+	}
 }

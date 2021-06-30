@@ -2,7 +2,7 @@
 // This source code is licensed under the MIT license found in the
 // LICENSE file in the root directory of this source tree.
 
-package filter
+package pgquery
 
 import (
 	"github.com/go-pg/pg/v10/orm"
@@ -19,8 +19,10 @@ type Range struct {
 }
 
 // NewRange initializes a new range filter.
-func NewRange() *Range {
-	return &Range{}
+func NewRange(column string) *Range {
+	return &Range{
+		column: column,
+	}
 }
 
 // Column set the column for the range filter.
@@ -53,9 +55,9 @@ func (f *Range) LessThanEqual(value int) *Range {
 	return f
 }
 
-// Build build query.
-func (f *Range) Build(condGroupFn condGroupFn) *orm.Query {
-	return condGroupFn(func(q *orm.Query) (*orm.Query, error) {
+// Appender returns parameters for cond group appender.
+func (f *Range) Appender() applyFn {
+	return func(q *orm.Query) (*orm.Query, error) {
 		if f.Lt != nil {
 			q.Where("? < ?", types.Ident(f.column), f.Lt)
 		}
@@ -69,5 +71,5 @@ func (f *Range) Build(condGroupFn condGroupFn) *orm.Query {
 			q.Where("? > ?", types.Ident(f.column), f.Gt)
 		}
 		return q, nil
-	})
+	}
 }
