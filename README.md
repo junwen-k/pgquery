@@ -7,4 +7,4 @@ Writing queries made easier with a set of Postgres common condition ORM helpers 
 
 ## License
 
-[MIT](./LICENSE)
+[MIT](./LICENSE.md)
